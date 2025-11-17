@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Paneli - Lezzet Bahçesi</title>
+    <link rel="stylesheet" href="admin.css">
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Girişi 🍽️</h1>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="login-email">E-posta:</label>
+                <input type="email" id="login-email" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Şifre:</label>
+                <input type="password" id="login-password" required>
+            </div>
+            <button type="submit" id="login-button">Giriş Yap</button>
+            <div id="login-error" class="error-message hidden">Hata: Geçersiz e-posta veya şifre.</div>
+        </form>
+
+        <div id="admin-panel" class="hidden">
+            <!-- Header -->
+            <div class="header">
+                <h2>🌿 Lezzet Bahçesi Restorant</h2>
+                <button id="logout-button" class="logout-btn">🚪 Çıkış</button>
+            </div>
+
+            <!-- Buton Grid -->
+            <div class="button-grid">
+                <button id="product-btn" class="grid-btn">
+                    <span>🍕</span>
+                    <span>Ürün Ekle/Çıkar</span>
+                </button>
+                <button id="order-status-btn" class="grid-btn">
+                    <span>📋</span>
+                    <span>Sipariş Durumu</span>
+                </button>
+                <button id="place-order-btn" class="grid-btn">
+                    <span>🛒</span>
+                    <span>Sipariş Ver</span>
+                </button>
+                <button id="reservation-btn" class="grid-btn">
+                    <span>🗓️</span>
+                    <span>Rezervasyon</span>
+                </button>
+                <button id="payment-btn" class="grid-btn">
+                    <span>💳</span>
+                    <span>Ödeme Kısmı</span>
+                </button>
+                <button id="reports-btn" class="grid-btn">
+                    <span>📊</span>
+                    <span>Raporlar</span>
+                </button>
+                <button id="kitchen-btn" class="grid-btn">
+                    <span>🍳</span>
+                    <span>Mutfak Yönetimi</span>
+                </button>
+                <button id="inventory-btn" class="grid-btn">
+                    <span>📦</span>
+                    <span>Stok Yönetimi</span>
+                </button>
+                <button id="crm-btn" class="grid-btn">
+                    <span>❤️</span>
+                    <span>CRM</span>
+                </button>
+            </div>
+
+            <!-- Kasa Aç Butonu -->
+            <button id="cash-open-btn" class="cash-btn">💰 Kasa Aç</button>
+        </div>
+    </div>
+
+    <!-- Modallar (Her biri gizli) -->
+    <div id="product-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>🍕 Ürün Yönetimi</h3>
+            <form id="add-product-form">
+                <input type="text" id="product-name" placeholder="Ürün Adı" required>
+                <input type="number" id="product-price" placeholder="Fiyat (TL)" required>
+                <select id="product-category" required>
+                    <option value="">Kategori Seç</option>
+                    <option value="baslangiclar">Başlangıçlar</option>
+                    <option value="salatalar">Salatalar</option>
+                    <option value="ana-yemekler">Ana Yemekler</option>
+                    <option value="deniz-urunleri">Deniz Ürünleri</option>
+                    <option value="pizzalar">Pizzalar</option>
+                    <option value="tatlilar">Tatlılar</option>
+                    <option value="icecekler">İçecekler</option>
+                </select>
+                <input type="text" id="product-ingredients" placeholder="Malzemeler">
+                <input type="url" id="product-image" placeholder="Resim URL">
+                <button type="submit">Ekle</button>
+            </form>
+            <div id="menu-items-list" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="order-status-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>📋 Sipariş Yönetimi</h3>
+            <div id="orders-list"></div>
+            <form id="order-modify-form">
+                <input type="text" id="order-id" placeholder="Sipariş ID" required>
+                <select id="order-status">
+                    <option value="Hazırlanıyor">Hazırlanıyor</option>
+                    <option value="Hazır">Hazır</option>
+                    <option value="İptal">İptal</option>
+                </select>
+                <button type="submit">Güncelle</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="place-order-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>🛒 Yeni Sipariş Oluştur</h3>
+            <form id="new-order-form">
+                <input type="text" placeholder="Müşteri Adı" required>
+                <input type="text" placeholder="Adres" required>
+                <input type="number" placeholder="Telefon" required>
+                <textarea placeholder="Notlar"></textarea>
+                <select multiple id="order-items" style="height: 100px;">
+                    <!-- Ürünler dinamik yüklenecek -->
+                </select>
+                <button type="submit">Sipariş Ver</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="reservation-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>🗓️ Rezervasyon Yönetimi</h3>
+            <form id="reservation-form">
+                <input type="date" id="res-date" required>
+                <input type="time" id="res-time" required>
+                <input type="number" id="res-people" placeholder="Kişi Sayısı" required>
+                <input type="text" id="res-name" placeholder="Müşteri Adı" required>
+                <input type="tel" id="res-phone" placeholder="Telefon">
+                <button type="submit">Rezervasyon Ekle</button>
+            </form>
+            <div id="reservations-list" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="payment-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>💳 Ödeme Yönetimi</h3>
+            <div id="payments-list"></div>
+            <form id="payment-split-form">
+                <input type="text" id="payment-order-id" placeholder="Sipariş ID" required>
+                <select id="split-type">
+                    <option value="product">Ürün Bazlı</option>
+                    <option value="amount">Tutar Bazlı</option>
+                    <option value="person">Kişi Sayısına Böl</option>
+                </select>
+                <input type="number" id="split-value" placeholder="Değer (örn: Tutar veya Kişi)" required>
+                <button type="submit">Böl ve Öde</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="reports-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>📊 Raporlama</h3>
+            <input type="date" id="report-date">
+            <button id="generate-report">Z Raporu Oluştur</button>
+            <button id="generate-sales-report">Satış Raporu</button>
+            <button id="generate-inventory-report">Stok Raporu</button>
+            <div id="report-content" style="margin-top: 20px;"></div>
+            <button id="download-pdf">PDF İndir</button>
+        </div>
+    </div>
+
+    <div id="kitchen-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>🍳 Mutfak Yönetimi</h3>
+            <div id="kitchen-orders-list"></div>
+            <button id="mark-ready">Hazır Olarak İşaretle</button>
+        </div>
+    </div>
+
+    <div id="inventory-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>📦 Stok Yönetimi</h3>
+            <form id="add-inventory-form">
+                <input type="text" id="item-name" placeholder="Malzeme Adı" required>
+                <input type="number" id="item-quantity" placeholder="Miktar" required>
+                <input type="number" id="item-cost" placeholder="Maliyet" required>
+                <button type="submit">Ekle</button>
+            </form>
+            <div id="inventory-list"></div>
+        </div>
+    </div>
+
+    <div id="crm-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>❤️ CRM</h3>
+            <form id="add-customer-form">
+                <input type="text" id="customer-name" placeholder="Müşteri Adı" required>
+                <input type="tel" id="customer-phone" placeholder="Telefon" required>
+                <input type="email" id="customer-email" placeholder="E-posta">
+                <button type="submit">Ekle</button>
+            </form>
+            <div id="customers-list"></div>
+        </div>
+    </div>
+
+    <div id="cash-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>💰 Kasa Aç</h3>
+            <form id="cash-form">
+                <input type="number" id="initial-balance" placeholder="Başlangıç Bakiye (TL)" required>
+                <button type="submit">Kasa Aç</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="admin.js"></script>
+</body>
+</html>

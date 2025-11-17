@@ -1,0 +1,20 @@
+// firebase.js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB7eAiOTixlYkM5Ifq_dPKLr-s7YYTK_g4",
+  authDomain: "lezzet-bahcesi-restorant.firebaseapp.com",
+  projectId: "lezzet-bahcesi-restorant",
+  storageBucket: "lezzet-bahcesi-restorant.firebasestorage.app",
+  messagingSenderId: "1077310533833",
+  appId: "1:1077310533833:web:8ecda365d08ebf44699d18",
+  measurementId: "G-0JX6PELPGS"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+export { app, db, auth };
