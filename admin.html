@@ -9,6 +9,8 @@
     <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
     <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -107,17 +109,56 @@
     <div id="order-status-modal" class="modal hidden">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h3>📋 Sipariş Yönetimi</h3>
-            <div id="orders-list"></div>
-            <form id="order-modify-form">
-                <input type="text" id="order-id" placeholder="Sipariş ID" required>
-                <select id="order-status">
-                    <option value="Hazırlanıyor">Hazırlanıyor</option>
-                    <option value="Hazır">Hazır</option>
-                    <option value="İptal">İptal</option>
-                </select>
-                <button type="submit">Güncelle</button>
-            </form>
+            <h3>📋 Sipariş Yönetimi - Masa Görünümü</h3>
+            
+            <!-- Ayarlar Kısmı -->
+            <div id="table-settings">
+                <label for="website-url">🌐 Website URL (QR kodlar için gerekli):</label>
+                <input type="url" id="website-url" placeholder="https://yourwebsite.com veya http://192.168.1.100:8080" 
+                       style="width: 100%; padding: 10px; margin-bottom: 15px; border: 2px solid #e5e7eb; border-radius: 5px;">
+                <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
+                    ⚠️ Telefonlardan erişim için: Eğer yerel sunucu kullanıyorsanız, bilgisayarınızın IP adresini girin (örn: http://192.168.1.100:8080). 
+                    Telefon ve bilgisayar aynı WiFi ağında olmalıdır.
+                </p>
+                <label for="table-count">Restoranda Kaç Masa Var?</label>
+                <input type="number" id="table-count" min="1" placeholder="Örn: 50" required>
+                <button id="save-table-count">Kaydet ve Masaları Yükle</button>
+            </div>
+            
+            <!-- Masa Grid'i -->
+            <div id="table-grid" style="display: none; margin-top: 20px;">
+                <div style="margin-bottom: 15px; text-align: center; display: flex; gap: 10px; justify-content: center;">
+                    <button id="update-table-count-btn" style="padding: 10px 20px; background: #ff6f61; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                        🔄 Masa Sayısını Güncelle
+                    </button>
+                    <button id="delete-all-tables-btn" style="padding: 10px 20px; background: #e53e3e; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                        🗑️ Tüm Masaları Sil
+                    </button>
+                </div>
+                <div id="table-list" class="table-grid"></div>
+                <div id="pagination" style="margin-top: 10px;">
+                    <button id="prev-page" disabled>Önceki</button>
+                    <span id="page-info">Sayfa 1</span>
+                    <button id="next-page">Sonraki</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Masa Detay Modal'ı -->
+    <div id="table-detail-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close">&times;</span>
+            <h3>Masa Detayları</h3>
+            <div id="table-detail-content">
+                <!-- Dinamik içerik: Masa numarası, durum, sipariş detayları -->
+            </div>
+            <div id="qr-code-container" style="text-align: center; margin: 20px 0;">
+                <h4>QR Kod</h4>
+                <div id="qr-code"></div>
+                <button id="download-qr" style="margin-top: 10px; padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer;">QR Kodu İndir</button>
+            </div>
+            <button id="update-table-status">Durum Güncelle</button>
         </div>
     </div>
 

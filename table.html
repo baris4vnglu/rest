@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masa Menüsü - Lezzet Bahçesi</title>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js" type="module"></script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .table-header {
+            background: linear-gradient(90deg, #ff6f61, #ff9f43);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .table-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .order-button {
+            background: #10b981;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        .order-button:hover {
+            background: #059669;
+        }
+        .order-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="table-header">
+        <h1>🌿 Lezzet Bahçesi</h1>
+        <div class="table-number" id="table-number">Masa Yükleniyor...</div>
+        <p>Siparişinizi oluşturun</p>
+    </div>
+
+    <div class="container">
+        <!-- Search and Filter -->
+        <div class="search-filter">
+            <input type="text" id="searchInput" placeholder="🔍 Menüde ara...">
+            <div class="category-filters">
+                <button class="category-filter active" data-category="all">Tümü</button>
+                <button class="category-filter" data-category="baslangiclar">Başlangıçlar</button>
+                <button class="category-filter" data-category="salatalar">Salatalar</button>
+                <button class="category-filter" data-category="ana-yemekler">Ana Yemekler</button>
+                <button class="category-filter" data-category="deniz-urunleri">Deniz Ürünleri</button>
+                <button class="category-filter" data-category="pizzalar">Pizzalar</button>
+                <button class="category-filter" data-category="tatlilar">Tatlılar</button>
+                <button class="category-filter" data-category="icecekler">İçecekler</button>
+            </div>
+        </div>
+
+        <!-- Menu Sections -->
+        <div id="menu-container">
+            <!-- Menu items will be loaded here -->
+        </div>
+
+        <!-- Cart Panel -->
+        <div id="cart-panel" class="cart-panel hidden">
+            <div class="cart-header">
+                <h3>Sepetim</h3>
+                <button id="cart-toggle">✕</button>
+            </div>
+            <div id="cart-items"></div>
+            <div class="cart-footer">
+                <div id="cart-total">Toplam: 0 TL</div>
+                <button id="checkout-button" class="order-button" disabled>Sipariş Ver</button>
+            </div>
+        </div>
+
+        <!-- Cart Toggle Button -->
+        <button id="cart-toggle-fixed" class="cart-toggle-fixed">
+            🛒 Sepet (<span id="cart-count">0</span>)
+        </button>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close" id="close-payment-modal">&times;</span>
+            <h2>Ödeme</h2>
+            <div class="payment-options">
+                <div class="payment-option">
+                    <h3>💳 Kredi Kartı</h3>
+                    <p>Kredi kartı ile ödeme</p>
+                </div>
+                <div class="payment-option">
+                    <h3>💰 Nakit</h3>
+                    <p>Nakit ödeme</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { collection, onSnapshot, addDoc, Timestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { db } from './firebase.js';
+
+        // Get table number from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const tableNumber = urlParams.get('table') || '1';
+        document.getElementById('table-number').textContent = `Masa ${tableNumber}`;
+
+        let cart = JSON.parse(localStorage.getItem(`cart_table_${tableNumber}`)) || [];
+        const cartItemsContainer = document.getElementById('cart-items');
+        const cartTotal = document.getElementById('cart-total');
+        const cartCount = document.getElementById('cart-count');
+        const checkoutButton = document.getElementById('checkout-button');
+        const cartPanel = document.getElementById('cart-panel');
+        const cartToggle = document.getElementById('cart-toggle');
+        const cartToggleFixed = document.getElementById('cart-toggle-fixed');
+        const menuContainer = document.getElementById('menu-container');
+
+        // Load menu items
+        function loadMenuItems() {
+            const grids = {
+                baslangiclar: { name: 'Başlangıçlar', items: [] },
+                salatalar: { name: 'Salatalar', items: [] },
+                'ana-yemekler': { name: 'Ana Yemekler', items: [] },
+                'deniz-urunleri': { name: 'Deniz Ürünleri', items: [] },
+                pizzalar: { name: 'Pizzalar', items: [] },
+                tatlilar: { name: 'Tatlılar', items: [] },
+                icecekler: { name: 'İçecekler', items: [] }
+            };
+
+            onSnapshot(query(collection(db, "menuItems"), orderBy("name")), (snapshot) => {
+                // Clear existing items
+                Object.keys(grids).forEach(key => grids[key].items = []);
+                menuContainer.innerHTML = '';
+
+                if (snapshot.empty) {
+                    menuContainer.innerHTML = '<div class="no-data">Menü öğeleri bulunamadı.</div>';
+                    return;
+                }
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.name && data.price && data.category && grids[data.category]) {
+                        grids[data.category].items.push({ id: doc.id, ...data });
+                    }
+                });
+
+                // Render menu sections
+                Object.entries(grids).forEach(([category, section]) => {
+                    if (section.items.length > 0) {
+                        const sectionDiv = document.createElement('div');
+                        sectionDiv.className = 'menu-section';
+                        sectionDiv.setAttribute('data-category', category);
+                        sectionDiv.innerHTML = `<h2 class="section-title">${section.name}</h2>`;
+                        
+                        const grid = document.createElement('div');
+                        grid.className = 'menu-grid';
+                        grid.id = `${category}-grid`;
+
+                        section.items.forEach(item => {
+                            const menuItem = document.createElement('div');
+                            menuItem.className = 'menu-item';
+                            menuItem.setAttribute('data-id', item.id);
+                            menuItem.innerHTML = `
+                                <img src="${item.image || 'https://via.placeholder.com/200?text=Resim'}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/200?text=Resim'">
+                                <div class="menu-item-details">
+                                    <div class="name">${item.name}</div>
+                                    <div class="price">${item.price} TL</div>
+                                    ${item.ingredients ? `<div class="ingredients">${item.ingredients}</div>` : ''}
+                                </div>
+                                <button class="add-to-cart" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}">Sepete Ekle</button>
+                            `;
+                            grid.appendChild(menuItem);
+                        });
+
+                        sectionDiv.appendChild(grid);
+                        menuContainer.appendChild(sectionDiv);
+                    }
+                });
+
+                updateMenuFunctionality();
+            }, (error) => {
+                console.error("Firestore hatası:", error);
+                menuContainer.innerHTML = '<div class="no-data">Menü yüklenemedi. Lütfen tekrar deneyin.</div>';
+            });
+        }
+
+        function updateMenuFunctionality() {
+            // Category filters
+            const filterButtons = document.querySelectorAll('.category-filter');
+            const menuSections = document.querySelectorAll('.menu-section');
+            
+            filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const category = button.getAttribute('data-category');
+                    menuSections.forEach(section => {
+                        if (category === 'all') {
+                            section.classList.remove('hidden');
+                        } else {
+                            section.classList.toggle('hidden', section.getAttribute('data-category') !== category);
+                        }
+                    });
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                });
+            });
+
+            // Search
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', () => {
+                const searchTerm = searchInput.value.toLowerCase();
+                const menuItems = document.querySelectorAll('.menu-item');
+                menuItems.forEach(item => {
+                    const name = item.querySelector('.name').textContent.toLowerCase();
+                    item.style.display = name.includes(searchTerm) ? 'block' : 'none';
+                });
+            });
+
+            // Add to cart buttons
+            const addToCartButtons = document.querySelectorAll('.add-to-cart');
+            addToCartButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.getAttribute('data-id');
+                    const name = button.getAttribute('data-name');
+                    const price = parseFloat(button.getAttribute('data-price'));
+                    
+                    cart.push({ id, name, price });
+                    updateCart();
+                    showNotification(`${name} sepete eklendi!`, 'success');
+                });
+            });
+        }
+
+        function updateCart() {
+            cartItemsContainer.innerHTML = '';
+            let total = 0;
+
+            cart.forEach((item, index) => {
+                total += item.price;
+                const cartItem = document.createElement('div');
+                cartItem.className = 'cart-item';
+                cartItem.innerHTML = `
+                    <span>${item.name}</span>
+                    <div>
+                        <span>${item.price} TL</span>
+                        <button class="remove-from-cart" data-index="${index}">Sil</button>
+                    </div>
+                `;
+                cartItemsContainer.appendChild(cartItem);
+            });
+
+            cartTotal.textContent = `Toplam: ${total} TL`;
+            cartCount.textContent = cart.length;
+            checkoutButton.disabled = cart.length === 0;
+            localStorage.setItem(`cart_table_${tableNumber}`, JSON.stringify(cart));
+        }
+
+        cartItemsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-from-cart')) {
+                const index = parseInt(e.target.getAttribute('data-index'));
+                cart.splice(index, 1);
+                updateCart();
+                showNotification('Ürün sepetten çıkarıldı!', 'error');
+            }
+        });
+
+        // Cart toggle
+        cartToggle.addEventListener('click', () => {
+            cartPanel.classList.toggle('active');
+            if (!cartPanel.classList.contains('active')) {
+                setTimeout(() => cartPanel.classList.add('hidden'), 300);
+            }
+        });
+
+        cartToggleFixed.addEventListener('click', () => {
+            cartPanel.classList.remove('hidden');
+            cartPanel.classList.add('active');
+        });
+
+        // Checkout
+        checkoutButton.addEventListener('click', async () => {
+            if (cart.length === 0) return;
+
+            const submitBtn = checkoutButton;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Gönderiliyor...';
+
+            try {
+                const items = cart.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price
+                }));
+
+                const total = items.reduce((sum, item) => sum + item.price, 0);
+
+                const orderData = {
+                    tableNumber: parseInt(tableNumber),
+                    items,
+                    total,
+                    status: 'Hazırlanıyor',
+                    createdAt: Timestamp.now()
+                };
+
+                await addDoc(collection(db, 'orders'), orderData);
+                
+                // Clear cart
+                cart = [];
+                updateCart();
+                
+                showNotification('Siparişiniz başarıyla gönderildi!', 'success');
+                
+                // Update table status
+                // Note: You might want to update the table status in Firestore here
+                
+            } catch (error) {
+                console.error('Sipariş hatası:', error);
+                showNotification('Sipariş gönderilirken bir hata oluştu.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sipariş Ver';
+            }
+        });
+
+        // Payment modal
+        const paymentModal = document.getElementById('payment-modal');
+        const closePaymentModal = document.getElementById('close-payment-modal');
+        const paymentOptions = document.querySelectorAll('.payment-option');
+
+        closePaymentModal.addEventListener('click', () => paymentModal.classList.add('hidden'));
+        paymentModal.addEventListener('click', (e) => {
+            if (e.target === paymentModal) paymentModal.classList.add('hidden');
+        });
+
+        paymentOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const method = option.querySelector('h3').textContent;
+                showNotification(`Ödeme yöntemi: ${method}`, 'success');
+                paymentModal.classList.add('hidden');
+            });
+        });
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                background: ${type === 'success' ? '#10b981' : '#e53e3e'};
+                color: white;
+                border-radius: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                z-index: 10000;
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // Initialize
+        updateCart();
+        loadMenuItems();
+    </script>
+</body>
+</html>
+
