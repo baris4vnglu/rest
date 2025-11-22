@@ -4,13 +4,13 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB7eAiOTixlYkM5Ifq_dPKLr-s7YYTK_g4",
-  authDomain: "lezzet-bahcesi-restorant.firebaseapp.com",
-  projectId: "lezzet-bahcesi-restorant",
-  storageBucket: "lezzet-bahcesi-restorant.firebasestorage.app",
-  messagingSenderId: "1077310533833",
-  appId: "1:1077310533833:web:8ecda365d08ebf44699d18",
-  measurementId: "G-0JX6PELPGS"
+  apiKey: "AIzaSyBRcHElPziOGJd7Q8rCcIluLZ2XnI9j4wE",
+  authDomain: "restorant-8e71c.firebaseapp.com",
+  projectId: "restorant-8e71c",
+  storageBucket: "restorant-8e71c.firebasestorage.app",
+  messagingSenderId: "149835762840",
+  appId: "1:149835762840:web:f8f053d46011bc693a94ed",
+  measurementId: "G-EHBJM150B0"
 };
 
 const app = initializeApp(firebaseConfig);
