@@ -7,6 +7,7 @@ body {
 }
 
 .container {
+
     max-width: 1200px;
     margin: 20px auto;
     padding: 20px;
@@ -246,6 +247,87 @@ button {
 #table-plan {
     border: 1px solid #ccc;
     margin: 10px 0;
+}
+
+.table-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+    padding: 20px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.table-card {
+    transition: all 0.3s ease;
+}
+
+.table-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
+#pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 20px;
+    padding: 15px;
+}
+
+#pagination button {
+    padding: 8px 16px;
+    background: #ff6f61;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#pagination button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+#pagination button:hover:not(:disabled) {
+    background: #ff5544;
+}
+
+#table-settings {
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+#table-settings label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #333;
+}
+
+#table-settings input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 2px solid #e5e7eb;
+    border-radius: 5px;
+}
+
+#table-settings button {
+    background: #10b981;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#table-settings button:hover {
+    background: #059669;
 }
 
 #modifiers-section {

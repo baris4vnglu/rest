@@ -451,3 +451,76 @@ body {
 .hidden {
     display: none;
 }
+/* ===============================
+   POSTER / TIMELINE MENÜ TASARIMI
+   =============================== */
+.menu-grid, .gallery-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 60px !important;
+}
+
+/* poster item görünümü */
+.menu-item, .gallery-item {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    padding: 25px;
+    border-radius: 20px;
+    background: white;
+    box-shadow: 0px 10px 30px rgba(0,0,0,0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+/* fotoğrafları yuvarlak yap */
+.menu-item .item-image img,
+.gallery-item img {
+    width: 180px !important;
+    height: 180px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+/* yazı kısmı */
+.menu-item .item-content,
+.gallery-item .gallery-overlay {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* poster yazı renkleri */
+.item-name, .gallery-name {
+    font-size: 1.9rem !important;
+    font-weight: 700;
+    color: #2d5016 !important;
+}
+
+.item-price, .gallery-price {
+    font-size: 1.7rem !important;
+    font-weight: 700;
+    color: #e67e22 !important;
+}
+
+/* büyük görünümde koyu arka plan kalksın */
+.gallery-overlay {
+    background: none !important;
+    position: static !important;
+    padding: 0 !important;
+    color: #333 !important;
+}
+
+/* timeline efekt çizgisi */
+.menu-item::before, .gallery-item::before {
+    content: "";
+    width: 6px;
+    height: 100%;
+    background: linear-gradient(#4a7c3a, #6baf4b);
+    position: absolute;
+    left: -20px;
+    top: 0;
+    border-radius: 10px;
+}

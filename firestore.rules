@@ -3,17 +3,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Menu Items - Allow public read (for customer page), authenticated write (for admin)
+    match /menuItems/{itemId} {
+      allow read: if true; // Public read access for customers
+      allow write: if isAuthenticated(); // Only authenticated admins can write
+    }
+    
+    // Orders - Allow public create (for customers), authenticated read/update/delete (for admin)
+    match /orders/{orderId} {
+      allow create: if true; // Customers can create orders
+      allow read, update, delete: if isAuthenticated(); // Only admins can read/update/delete
+    }
+    
+    // Reservations - Allow authenticated users to read/write
+    match /reservations/{reservationId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Inventory - Allow authenticated users to read/write
+    match /inventory/{itemId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Customers (CRM) - Allow authenticated users to read/write
+    match /customers/{customerId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Cash Register - Allow authenticated users to read/write
+    match /cashRegister/{cashId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Tables - Allow public read (for customer table selection), authenticated write (for admin)
+    match /tables/{tableId} {
+      allow read: if true; // Public read access for customers to select tables
+      allow write: if isAuthenticated(); // Only authenticated admins can write
+    }
+    
+    // Table Settings - Allow authenticated users to read/write
+    match /tableSettings/{settingId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Fallback: Deny all other access
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 8, 4);
+      allow read, write: if false;
     }
   }
 }

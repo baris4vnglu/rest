@@ -3,12 +3,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
-    apiKey: "SANA_AİT_API_ANAHTARINI_BURAYA_EKLE",
-    authDomain: "lezzet-bahcesi-restorant.firebaseapp.com",
+    apiKey: "AIzaSyBRcHElPziOGJd7Q8rCcIluLZ2XnI9j4wE",
+    authDomain: "restorant-8e71c.firebaseapp.com",
     projectId: "lezzet-bahcesi-restorant",
-    storageBucket: "lezzet-bahcesi-restorant.firebasestorage.app",
-    messagingSenderId: "1077310533833",
-    appId: "1:1077310533833:web:8ecda365d08ebf44699d18"
+    storageBucket: "restorant-8e71c.firebasestorage.app",
+    messagingSenderId: "149835762840",
+    appId: "1:149835762840:web:f8f053d46011bc693a94ed"
 };
 
 const app = initializeApp(firebaseConfig);
