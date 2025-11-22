@@ -1,19 +1,23 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Müşterilerin menüyü okumasına izin ver
+    match /menuItems/{menuItem} {
+      allow read: if true; 
+      // Sadece giriş yapmış Admin yazabilir
+      allow write: if request.auth != null; 
+    }
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    // Müşterilerin sipariş oluşturmasına izin ver
+    match /orders/{order} {
+      allow create: if true;
+      // Sadece giriş yapmış Admin okuyabilir/güncelleyebilir
+      allow read, update: if request.auth != null; 
+    }
+    
+    // Masa ayarları, envanter, kasa vb. sadece Admin'e açık olmalı
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 8, 4);
+      allow read, write: if request.auth != null;
     }
   }
 }
