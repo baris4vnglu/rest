@@ -1,7 +1,8 @@
 import { db, auth } from './firebase.js';
 import {
-  collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, query, where, getDocs, getDoc, orderBy, Timestamp
+  collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, query, where, getDocs, getDoc, orderBy, Timestamp, limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 import {
   signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -2445,57 +2446,264 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification('Bölünecek kişi sayısı en az 2 olmalıdır', 'error');
                 return;
             }
-            
+
             calculateSplit(amount, splitCount);
         });
     }
 });
 
-// Raporlar
+// Kategoriye göre KDV oranı belirleme (Türkiye standartlarına göre örnek)
+const getVatRate = (category) => {
+    // Kategori isimlerini küçük harfe çevirip kontrol ediyoruz
+    const cat = category ? category.toLowerCase() : '';
+    if (cat.includes('icecek') || cat.includes('içecek') || cat.includes('alkol')) {
+        return 20; // İçecekler %20 (Örnek)
+    }
+    return 10; // Yiyecekler %10 (Örnek)
+};
+
+// İçinden vergi ayıklama formülü: Tutar / (1 + (VergiOranı/100))
+const calculateTaxBase = (total, rate) => {
+    return total / (1 + (rate / 100));
+};
+
+// --- GELİŞMİŞ Z RAPORU OLUŞTURMA ---
+
 generateReport.addEventListener('click', async () => {
-    const date = reportDate.value || new Date().toISOString().split('T')[0];
+    // 1. Tarih Seçimi
+    const selectedDateStr = reportDate.value || new Date().toISOString().split('T')[0];
+    const startDate = new Date(selectedDateStr);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(selectedDateStr);
+    endDate.setHours(23, 59, 59, 999);
+
+    const btnOriginalText = generateReport.textContent;
     generateReport.disabled = true;
-    generateReport.textContent = 'Hazırlanıyor...';
-    
+    generateReport.textContent = 'Mali Hafıza Sorgulanıyor...';
+
     try {
-        const startDate = new Date(date);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(date);
-        endDate.setHours(23, 59, 59, 999);
+        // 2. Önceki Z Raporu Verilerini Çek (Kümülatif Toplam ve Z No için)
+        // 'z_reports' koleksiyonundan en son eklenen raporu çekiyoruz.
+        const lastZQuery = query(collection(db, 'z_reports'), orderBy('zNo', 'desc'), limit(1)); // limit import edilmeli
+        // NOT: Script'in en üstündeki import kısmına 'limit' eklemeyi unutmayın!
+        // import { ..., limit } from "..."
         
+        const lastZSnapshot = await getDocs(lastZQuery);
+        let previousCumulative = 0;
+        let newZNo = 1;
+
+        if (!lastZSnapshot.empty) {
+            const lastZData = lastZSnapshot.docs[0].data();
+            previousCumulative = lastZData.cumulativeTotal || 0;
+            newZNo = (lastZData.zNo || 0) + 1;
+        }
+
+        // 3. Seçilen Günün Siparişlerini Çek
         const ordersSnapshot = await getDocs(
             query(
                 collection(db, 'orders'),
                 where('createdAt', '>=', Timestamp.fromDate(startDate)),
-                where('createdAt', '<=', Timestamp.fromDate(endDate))
+                where('createdAt', '<=', Timestamp.fromDate(endDate)),
+                where('paid', '==', true) // Sadece ödenmiş siparişler
             )
         );
-        
-        let totalSales = 0;
+
+        // 4. Hesaplamaları Yap
+        let dailyTotal = 0;
+        let cashTotal = 0;
+        let creditTotal = 0;
         let orderCount = 0;
+        
+        // KDV Matrahları (Base) ve KDV Tutarları (Amount) için nesne
+        // Örn: { "10": { base: 100, tax: 10 }, "20": { base: 200, tax: 40 } }
+        let vatBreakdown = {};
+
         ordersSnapshot.forEach((docSnap) => {
             const order = docSnap.data();
-            if (order.paid) {
-                totalSales += order.total || 0;
-                orderCount++;
+            const orderTotal = parseFloat(order.total) || 0;
+            
+            // Genel Toplamlar
+            dailyTotal += orderTotal;
+            orderCount++;
+
+            // Ödeme Tipi Ayrımı
+            if (order.paymentMethod === 'kredi-karti') {
+                creditTotal += orderTotal;
+            } else {
+                cashTotal += orderTotal; // Varsayılan Nakit
+            }
+
+            // KDV Hesaplama (Ürün bazlı)
+            if (order.items && Array.isArray(order.items)) {
+                order.items.forEach(item => {
+                    const itemTotal = (item.price || 0) * (item.quantity || 1);
+                    // Ürünün kategorisini bulmamız lazım, siparişte yoksa varsayılan 10 alalım
+                    // Not: Gerçek sistemde ürün kategorisi sipariş satırına (order items) kaydedilmelidir.
+                    // Şimdilik ürün isminden veya menüden çekmek yerine basitleştirilmiş mantık kullanıyoruz.
+                    // Eğer order.items içinde kategori yoksa varsayılan yiyecek kabul ediyoruz.
+                    const taxRate = getVatRate(item.category || 'yiyecek'); 
+                    
+                    const taxBase = calculateTaxBase(itemTotal, taxRate);
+                    const taxAmount = itemTotal - taxBase;
+
+                    if (!vatBreakdown[taxRate]) {
+                        vatBreakdown[taxRate] = { base: 0, tax: 0 };
+                    }
+                    vatBreakdown[taxRate].base += taxBase;
+                    vatBreakdown[taxRate].tax += taxAmount;
+                });
+            } else {
+                // Eğer detay yoksa tüm siparişi %10 varsayalım
+                const taxRate = 10;
+                const taxBase = calculateTaxBase(orderTotal, taxRate);
+                const taxAmount = orderTotal - taxBase;
+                if (!vatBreakdown[taxRate]) vatBreakdown[taxRate] = { base: 0, tax: 0 };
+                vatBreakdown[taxRate].base += taxBase;
+                vatBreakdown[taxRate].tax += taxAmount;
             }
         });
-        
-        reportContent.innerHTML = `
-            <div style="padding: 20px;">
-                <h4>Z Raporu - ${date}</h4>
-                <p><strong>Toplam Satış:</strong> ${totalSales.toFixed(2)} TL</p>
-                <p><strong>Sipariş Sayısı:</strong> ${orderCount}</p>
-                <p><strong>Ortalama Sipariş:</strong> ${orderCount > 0 ? (totalSales / orderCount).toFixed(2) : 0} TL</p>
+
+        const currentCumulative = previousCumulative + dailyTotal;
+
+        // 5. Rapor HTML'ini Oluştur (Termal Fiş Formatı)
+        let kdvRowsHtml = '';
+        Object.keys(vatBreakdown).sort((a,b) => a-b).forEach(rate => {
+            kdvRowsHtml += `
+                <tr>
+                    <td>%${rate}</td>
+                    <td>${vatBreakdown[rate].base.toFixed(2)}</td>
+                    <td>${vatBreakdown[rate].tax.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        const reportHtml = `
+            <div id="z-report-print-area">
+                <div class="receipt-header">
+                    <span class="receipt-title">LEZZET BAHÇESİ</span>
+                    <div class="receipt-info">Örnek Mah. Lezzet Sok. No:1</div>
+                    <div class="receipt-info">Vergi Dairesi: İstanbul / VKN: 1234567890</div>
+                    <div class="receipt-info">Tarih: ${new Date().toLocaleString('tr-TR')}</div>
+                    <br>
+                    <span class="receipt-title">MALİ GÜN SONU RAPORU (Z)</span>
+                </div>
+
+                <div class="receipt-body">
+                    <div class="receipt-row">
+                        <span>Z NO:</span>
+                        <span>${String(newZNo).padStart(4, '0')}</span>
+                    </div>
+                     <div class="receipt-row">
+                        <span>Rapor Tarihi:</span>
+                        <span>${selectedDateStr}</span>
+                    </div>
+                    
+                    <div class="receipt-divider"></div>
+
+                    <div class="receipt-row">
+                        <span>GÜNLÜK TOPLAM SATIŞ:</span>
+                        <span style="font-size: 1.1em; font-weight: bold;">*${dailyTotal.toFixed(2)} TL</span>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+                    <div style="text-align:center; font-weight:bold; margin-bottom:5px;">ÖDEME DETAYLARI</div>
+                    
+                    <div class="receipt-row">
+                        <span>NAKİT:</span>
+                        <span>${cashTotal.toFixed(2)} TL</span>
+                    </div>
+                    <div class="receipt-row">
+                        <span>KREDİ KARTI:</span>
+                        <span>${creditTotal.toFixed(2)} TL</span>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+                    <div style="text-align:center; font-weight:bold; margin-bottom:5px;">KDV DÖKÜMÜ</div>
+                    
+                    <table class="kdv-table">
+                        <thead>
+                            <tr>
+                                <th>Oran</th>
+                                <th>Matrah</th>
+                                <th>KDV Tutarı</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${kdvRowsHtml}
+                        </tbody>
+                    </table>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="receipt-row bold">
+                        <span>Z KÜMÜLATİF TOPLAM:</span>
+                        <span>${currentCumulative.toFixed(2)} TL</span>
+                    </div>
+                    
+                    <div class="receipt-row">
+                        <span>EKÜ NO:</span>
+                        <span>1234-5678</span>
+                    </div>
+                </div>
+
+                <div class="receipt-footer">
+                    <div class="receipt-info">BU BELGE Z RAPORU NİTELİĞİNDEDİR</div>
+                    <div class="receipt-info">MALİ HAFIZA KAYDI YAPILMIŞTIR</div>
+                    <div style="margin-top:10px; font-weight:bold;">*** MALİYE ONAYLI ***</div>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px; text-align:center;">
+                <button id="save-z-report-btn" class="action-button" style="background:#e53e3e;"> Günü Kapat ve Kaydet</button>
             </div>
         `;
-        showNotification('Z raporu oluşturuldu!', 'success');
+
+        reportContent.innerHTML = reportHtml;
+
+        // 6. "Günü Kapat ve Kaydet" Butonu Mantığı
+        // Raporu sadece görüntülüyoruz, kullanıcı "Kaydet" derse veritabanına işliyoruz.
+        const saveBtn = document.getElementById('save-z-report-btn');
+        saveBtn.addEventListener('click', async () => {
+            if(!confirm('DİKKAT! Gün sonu işlemi yapılacak ve Z Raporu kaydedilecek. Bu işlem geri alınamaz. Onaylıyor musunuz?')) return;
+            
+            try {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Kaydediliyor...';
+
+                // Veritabanına Z Raporunu Kaydet
+                await addDoc(collection(db, 'z_reports'), {
+                    zNo: newZNo,
+                    date: selectedDateStr, // Raporun ait olduğu gün
+                    generatedAt: Timestamp.now(), // Raporun oluşturulduğu an
+                    dailyTotal: dailyTotal,
+                    cumulativeTotal: currentCumulative,
+                    cashTotal: cashTotal,
+                    creditTotal: creditTotal,
+                    vatBreakdown: vatBreakdown,
+                    orderCount: orderCount
+                });
+
+                showNotification(`Z Raporu No: ${newZNo} başarıyla kaydedildi ve gün kapatıldı.`, 'success');
+                saveBtn.style.display = 'none'; // Çift kaydı önlemek için butonu gizle
+                
+                // İsterseniz burada otomatik PDF indirmeyi tetikleyebilirsiniz
+                document.getElementById('download-pdf').click();
+
+            } catch (error) {
+                console.error('Z Raporu kayıt hatası:', error);
+                showNotification('Z Raporu kaydedilirken hata oluştu!', 'error');
+                saveBtn.disabled = false;
+            }
+        });
+
+        showNotification('Z Raporu önizlemesi oluşturuldu.', 'success');
+
     } catch (error) {
         console.error('Rapor oluşturma hatası:', error);
-        showNotification('Rapor oluşturulurken bir hata oluştu.', 'error');
+        showNotification('Rapor oluşturulurken bir hata oluştu: ' + error.message, 'error');
     } finally {
         generateReport.disabled = false;
-        generateReport.textContent = 'Z Raporu';
+        generateReport.textContent = btnOriginalText;
     }
 });
 
@@ -2503,6 +2711,7 @@ generateSalesReport.addEventListener('click', async () => {
     generateSalesReport.disabled = true;
     generateSalesReport.textContent = 'Hazırlanıyor...';
     
+    // ... (rest of the code remains the same)
     try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);

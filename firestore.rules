@@ -1,23 +1,79 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Müşterilerin menüyü okumasına izin ver
-    match /menuItems/{menuItem} {
-      allow read: if true; 
-      // Sadece giriş yapmış Admin yazabilir
-      allow write: if request.auth != null; 
-    }
-
-    // Müşterilerin sipariş oluşturmasına izin ver
-    match /orders/{order} {
-      allow create: if true;
-      // Sadece giriş yapmış Admin okuyabilir/güncelleyebilir
-      allow read, update: if request.auth != null; 
+    
+    // Yardımcı Fonksiyon: Kullanıcının giriş yapıp yapmadığını kontrol eder (Admin yetkisi)
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Masa ayarları, envanter, kasa vb. sadece Admin'e açık olmalı
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // ===============================================
+    // 1. MÜŞTERİ (PUBLIC READ) ve ADMİN (WRITE) KOLEKSİYONLARI
+    // ===============================================
+    
+    // Menü Öğeleri (menuItems): Müşteri okuyabilir, Admin yazabilir.
+    match /menuItems/{itemId} {
+      allow read: if true; // Herkes okuyabilir (Menüyü göstermek için)
+      allow write: if isAuthenticated(); // Sadece Admin yazabilir (Ürün ekleme/düzenleme)
     }
+    
+    // Siparişler (orders): Müşteri oluşturabilir, Admin yönetebilir.
+    match /orders/{orderId} {
+      allow create: if true; // Herkes sipariş oluşturabilir
+      allow read, update, delete: if isAuthenticated(); // Sadece Admin yönetebilir
+    }
+    
+    // Masalar (tables): Müşteri okuyabilir (Masa seçimi için), Admin yazabilir.
+    match /tables/{tableId} {
+      allow read: if true; // Herkes okuyabilir (Hangi masalar boş/dolu)
+      allow write: if isAuthenticated(); // Sadece Admin güncelleyebilir
+    }
+    
+    // ===============================================
+    // 2. SADECE ADMİN (AUTH) KOLEKSİYONLARI
+    // ===============================================
+    
+    // Rezervasyonlar
+    match /reservations/{reservationId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Envanter / Stok
+    match /inventory/{itemId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Müşteriler (CRM)
+    match /customers/{customerId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Kasa Kaydı
+    match /cashRegister/{cashId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Masa Ayarları
+    match /tableSettings/{settingId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // --- YENİ EKLENEN KISIM ---
+    // Z Raporları (Mali Raporlar)
+    match /z_reports/{reportId} {
+      allow read, write: if isAuthenticated();
+    }
+    // -------------------------
+    
+    // ===============================================
+    // 3. FALLBACK: TANIMSIZ HER ŞEYİ YASAKLA
+    // ===============================================
+    
+    // Yukarıdaki kurallar dışında kalan tüm dökümanlara erişimi engeller.
+    match /{document=**} {
+      allow read, write: if false; 
+    }
+    
   }
 }
