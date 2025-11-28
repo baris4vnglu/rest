@@ -1,14 +1,13 @@
 // Firebase Entegrasyonu
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
+import { db } from './firebase.js'; // db nesnesini firebase.js'den alıyoruz
+import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const firebaseConfig = {
-    apiKey: "SANA_AİT_API_ANAHTARINI_BURAYA_EKLE",
-    authDomain: "lezzet-bahcesi-restorant.firebaseapp.com",
-    projectId: "lezzet-bahcesi-restorant",
-    storageBucket: "lezzet-bahcesi-restorant.firebasestorage.app",
-    messagingSenderId: "1077310533833",
-    appId: "1:1077310533833:web:8ecda365d08ebf44699d18"
+    apiKey: "AIzaSyBRcHElPziOGJd7Q8rCcIluLZ2XnI9j4wE",
+    authDomain: "restorant-8e71c.firebaseapp.com",
+    projectId: "restorant-8e71c",
+    storageBucket: "restorant-8e71c.firebasestorage.app",
+    messagingSenderId: "149835762840",
+    appId: "1:149835762840:web:f8f053d46011bc693a94ed"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -19,11 +18,19 @@ function loadMenuItems() {
     const grids = {
         baslangiclar: document.getElementById('baslangiclar-grid'),
         salatalar: document.getElementById('salatalar-grid'),
-        'ana-yemekler': document.getElementById('ana-yemekler-grid'),
-        'deniz-urunleri': document.getElementById('deniz-urunleri-grid'),
+        kahvaltilar: document.getElementById('kahvaltilar-grid'),
+        denizurunleri: document.getElementById('denizurunleri-grid'),
         pizzalar: document.getElementById('pizzalar-grid'),
-        tatlilar: document.getElementById('tatlilar-grid'),
-        icecekler: document.getElementById('icecekler-grid')
+        burgerler: document.getElementById('burgerler-grid'),
+        icecekler: document.getElementById('icecekler-grid'),
+        corbalar: document.getElementById('corbalar-grid'),
+        kebaplar: document.getElementById('kebaplar-grid'),
+        makarnalar: document.getElementById('makarnalar-grid'),
+        mexicanmutfagi: document.getElementById('mexicanmutfagi-grid'),
+        pidecesitleri: document.getElementById('pide-cesitleri-grid'),
+        sandiviclervetostlar: document.getElementById('sandiviclervetostlar-grid'),
+        steakler: document.getElementById('steakler-grid'),
+        tavukyemekleri: document.getElementById('tavukyemekleri-grid'),
     };
 
     onSnapshot(collection(db, "menuItems"), (snapshot) => {
