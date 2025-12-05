@@ -83,13 +83,6 @@
             padding: 12px 24px;
             border-radius: 25px;
             font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .table-number:hover {
-            background: rgba(255,255,255,0.2);
-            transform: scale(1.05);
         }
 
         .cart-summary {
@@ -715,57 +708,31 @@
             <h1 class="restaurant-name">LEZZET BAHÇESİ</h1>
             <h1>MENÜ</h1>
             <div class="table-info">
-                <div class="table-number" id="table-number-display" style="cursor: pointer;" title="Masa numarasını değiştirmek için tıklayın">
-                    Masa No: <span id="table-number">1</span> 🔄
-                </div>
+                <div class="table-number">Masa No: <span id="table-number">1</span></div>
                 <div class="cart-summary">Sepet: 0 Ürün - 0 TL</div>
             </div>
         </div>
     </div>
 
-    <!-- Masa Seçim Modal -->
-    <div id="table-select-modal" class="modal hidden">
-        <div class="modal-content" style="max-width: 500px;">
-            <span class="close" id="close-table-modal">&times;</span>
-            <h3 style="margin-bottom: 20px;">📋 Masa Seçin</h3>
-            <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
-                Lütfen oturduğunuz masa numarasını seçin:
-            </p>
-            <div id="tables-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; max-height: 400px; overflow-y: auto; padding: 10px;">
-                <p style="text-align: center; color: #666; grid-column: 1 / -1; padding: 20px;">Yükleniyor...</p>
-            </div>
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                <button id="confirm-table-selection" style="width: 100%; padding: 12px; background: #2c5530; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; display: none;">
-                    Masa #<span id="selected-table-num">-</span> Seç
-                </button>
-            </div>
-        </div>
-    </div>
-
-      <div class="container">
+    <div class="container">
         <nav class="categories-nav">
             <div class="categories-container">
-             <button class="category-btn active"data-category="all">Tümü</button>
-                <button class="category-btn " data-category="baslangiclar">Başlangiçlar</button>
-                <button class="category-btn " data-category="salatalar">Salatalar</button>
-                <button class="category-btn " data-category="kahvaltilar">Kahvaltilar</button>
-                <button class="category-btn " data-category="denizurunleri">Deniz Ürünleri</button>
-                <button class="category-btn " data-category="pizzalar">Pizzalar</button>
-                <button class="category-btn " data-category="burgerler">Burgerler</button>
-                <button class="category-btn " data-category="çorbalar">Çorbalar</button>
-                <button class="category-btn " data-category="kebaplar">Kebaplar</button>
-                <button class="category-btn " data-category="makarnalar">Makarnalar</button>
-                <button class="category-btn " data-category="mexicanmutfagi">Mexican Mutfagi</button>
-                <button class="category-btn " data-category="pideçeşitleri">Pide Çeşitleri</button>
-                <button class="category-btn " data-category="sandiviçlervetostlar">Sandiviçler ve Tostlar</button>
-                <button class="category-btn " data-category="steakler">Steakler</button>
-                <button class="category-btn " data-category="tavukyemekleri">Tavuk Yemekleri</button>
-                <button class="category-btn" data-category="softiçecekler">Soft İçecekler</button>
-                <button class="category-btn" data-category="sıcakiçecekler">Sıcak İçecekler</button>
-                <button class="category-btn" data-category="milkshakes">Milkshakes</button>
-                <button class="category-btn" data-category="smoothies">Smoothies</button>
-                <button class="category-btn" data-category="icecoffes">Ice Coffees</button>
-                <button class="category-btn" data-category="frozens">Frozens</button>
+                <button class="category-btn active" data-category="all">Tümü</button>
+                <button class="category-btn" data-category="baslangiclar">Başlangiçlar</button>
+                <button class="category-btn" data-category="salatalar">Salatalar</button>
+                <button class="category-btn" data-category="kahvaltilar">Kahvaltilar</button>
+                <button class="category-btn" data-category="denizurunleri">Deniz Ürünleri</button>
+                <button class="category-btn" data-category="pizzalar">Pizzalar</button>
+                <button class="category-btn" data-category="burgerler">Burgerler</button>
+                <button class="category-btn" data-category="icecekler">İçecekler</button>
+                <button class="category-btn" data-category="corbalar">Corbalar</button>
+                <button class="category-btn" data-category="kebaplar">Kebaplar</button>
+                <button class="category-btn" data-category="makarnalar">Makarnalar</button>
+                <button class="category-btn" data-category="mexicanmutfagi">Mexican Mutfagi</button>
+                <button class="category-btn" data-category="pidecesitleri">Pide Cesitleri</button>
+                <button class="category-btn" data-category="sandiviclervetostlar">Sandivicler ve Tostlar</button>
+                <button class="category-btn" data-category="steakler">Steakler</button>
+                <button class="category-btn" data-category="tavukyemekleri">Tavuk Yemekleri</button>
 
             </div>
         </nav>
@@ -798,18 +765,6 @@
                 <p><strong>İçindekiler:</strong> <span id="modal-ingredients"></span></p>
                 <h3>Özelleştirme</h3>
                 <textarea id="modal-customization" placeholder="Yemeğin nasıl olmasını istediğinizi yazın (örneğin, sossuz, az pişmiş)"></textarea>
-                <h3>Puan Ver</h3>
-                <div class="rating" id="modal-rating">
-                    <span class="star" data-value="1">★</span>
-                    <span class="star" data-value="2">★</span>
-                    <span class="star" data-value="3">★</span>
-                    <span class="star" data-value="4">★</span>
-                    <span class="star" data-value="5">★</span>
-                </div>
-                <h3>Yorum Yap</h3>
-                <textarea id="comment" placeholder="Yorumunuzu yazın..."></textarea>
-                <button id="submit-comment">Yorum Gönder</button>
-                <h3>Yorumlar ve Puanlar</h3>
                 <div id="comment-list"></div>
                 <button id="modal-add-to-cart" class="add-to-cart" style="margin-top: 15px; width: 100%;">Sepete Ekle</button>
             </div>
@@ -1187,20 +1142,6 @@
                 });
             });
 
-            submitComment.addEventListener('click', () => {
-                const comment = commentInput.value.trim();
-                if (comment && currentRating > 0 && currentItemId) {
-                    saveComment(currentItemId, currentRating, comment);
-                    loadComments(currentItemId);
-                    commentInput.value = '';
-                    ratingStars.forEach(star => star.classList.remove('filled'));
-                    currentRating = 0;
-                    showNotification(`${currentItem.name} için yorum ve puan kaydedildi!`, 'success');
-                } else {
-                    showNotification('Lütfen bir yorum yazın ve puan verin.', 'error');
-                }
-            });
-
             modalAddToCart.addEventListener('click', () => {
                 if (!currentItem) return;
                 const customization = modalCustomization.value.trim();
@@ -1215,29 +1156,6 @@
             });
         }
 
-        // Yorum işlevleri
-        function loadComments(itemId) {
-            const comments = JSON.parse(localStorage.getItem(`comments_${itemId}`)) || [];
-            const commentList = document.getElementById('comment-list');
-            commentList.innerHTML = '';
-            
-            comments.forEach(({ rating, comment }) => {
-                const commentDiv = document.createElement('div');
-                commentDiv.style.padding = '10px';
-                commentDiv.style.borderBottom = '1px solid var(--border)';
-                commentDiv.style.marginBottom = '10px';
-                
-                const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-                commentDiv.innerHTML = `
-                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                        <span class="comment-star">${stars}</span>
-                        <span style="margin-left: 8px; font-size: 12px; color: var(--text-light);">(${rating}/5)</span>
-                    </div>
-                    <p style="color: var(--text-dark); font-size: 14px;">${comment}</p>
-                `;
-                commentList.appendChild(commentDiv);
-            });
-        }
 
         function saveComment(itemId, rating, comment) {
             const comments = JSON.parse(localStorage.getItem(`comments_${itemId}`)) || [];
@@ -1327,23 +1245,19 @@
                             const total = items.reduce((sum, item) => sum + item.price, 0);
                             const tableNumber = getTableNumber();
                             
-                            // Masa numarası zorunlu kontrolü
-                            if (!tableNumber || tableNumber === '1' || tableNumber === null) {
-                                showNotification('Lütfen geçerli bir masa numarası seçin!', 'error');
-                                paymentModal.classList.add('hidden');
-                                return;
-                            }
-                            
                             const orderData = {
                                 items,
                                 total,
                                 status: 'Hazırlanıyor',
-                                paid: false,
                                 createdAt: Timestamp.now(),
                                 paymentMethod: method,
-                                source: 'index.html',
-                                tableNumber: parseInt(tableNumber) // Masa numarası zorunlu
+                                source: 'index.html' // Müşteri menüsünden geldiğini belirtmek için
                             };
+                            
+                            // Eğer masa numarası varsa ekle
+                            if (tableNumber && tableNumber !== '1') {
+                                orderData.tableNumber = parseInt(tableNumber);
+                            }
                             
                             await addDoc(collection(db, 'orders'), orderData);
                             showNotification(`Siparişiniz alındı! Ödeme: ${method}`, 'success');
@@ -1354,11 +1268,7 @@
                             paymentModal.classList.add('hidden');
                         } catch (error) {
                             console.error('Sipariş kaydetme hatası:', error);
-                            let errorMsg = 'Sipariş kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.';
-                            if (error.code === 'permission-denied') {
-                                errorMsg = 'İzin hatası: Firestore rules güncellenmemiş olabilir.';
-                            }
-                            showNotification(errorMsg, 'error');
+                            showNotification('Sipariş kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.', 'error');
                         }
                     } else {
                         paymentModal.classList.add('hidden');
@@ -1375,162 +1285,6 @@
             document.body.appendChild(notification);
             setTimeout(() => notification.remove(), 2000);
         }
-
-        // Masa seçim modal'ı
-        let selectedTableForModal = null;
-        const tableSelectModal = document.getElementById('table-select-modal');
-        const tableNumberDisplay = document.getElementById('table-number-display');
-        const tablesListDiv = document.getElementById('tables-list');
-        const confirmTableBtn = document.getElementById('confirm-table-selection');
-        const closeTableModal = document.getElementById('close-table-modal');
-
-        // Masa numarasına tıklanınca modal aç
-        if (tableNumberDisplay) {
-            tableNumberDisplay.addEventListener('click', () => {
-                loadTablesForSelection();
-                tableSelectModal.classList.remove('hidden');
-            });
-        }
-
-        // Modal kapatma
-        if (closeTableModal) {
-            closeTableModal.addEventListener('click', () => {
-                tableSelectModal.classList.add('hidden');
-                selectedTableForModal = null;
-                confirmTableBtn.style.display = 'none';
-            });
-        }
-
-        // Modal dışına tıklanınca kapat
-        if (tableSelectModal) {
-            tableSelectModal.addEventListener('click', (e) => {
-                if (e.target === tableSelectModal) {
-                    tableSelectModal.classList.add('hidden');
-                    selectedTableForModal = null;
-                    confirmTableBtn.style.display = 'none';
-                }
-            });
-        }
-
-        // Masaları yükle
-        async function loadTablesForSelection() {
-            if (!tablesListDiv) return;
-            
-            try {
-                tablesListDiv.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1 / -1; padding: 20px;">Yükleniyor...</p>';
-                
-                const { getDocs, query, collection, orderBy } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-                const tablesSnapshot = await getDocs(query(collection(db, 'tables'), orderBy('number', 'asc')));
-                
-                if (tablesSnapshot.empty) {
-                    tablesListDiv.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1 / -1; padding: 20px;">Henüz masa oluşturulmamış.</p>';
-                    return;
-                }
-                
-                tablesListDiv.innerHTML = '';
-                const currentTable = parseInt(getTableNumber());
-                
-                tablesSnapshot.forEach((docSnap) => {
-                    const table = docSnap.data();
-                    const tableNumber = table.number;
-                    const isSelected = currentTable === tableNumber;
-                    const isOccupied = table.status === 'Dolu';
-                    
-                    const tableBtn = document.createElement('button');
-                    tableBtn.className = 'table-select-btn';
-                    tableBtn.style.cssText = `
-                        padding: 15px;
-                        border: 2px solid ${isSelected ? '#2c5530' : isOccupied ? '#e53e3e' : '#d1d5db'};
-                        border-radius: 8px;
-                        background: ${isSelected ? '#2c5530' : isOccupied ? '#fee2e2' : '#f9fafb'};
-                        color: ${isSelected ? 'white' : isOccupied ? '#e53e3e' : '#374151'};
-                        font-size: 16px;
-                        font-weight: ${isSelected ? 'bold' : 'normal'};
-                        cursor: ${isOccupied ? 'not-allowed' : 'pointer'};
-                        transition: all 0.2s;
-                        position: relative;
-                    `;
-                    
-                    tableBtn.innerHTML = `
-                        <div style="font-size: 18px; font-weight: bold;">${tableNumber}</div>
-                        <div style="font-size: 12px; margin-top: 5px;">${table.status || 'Boş'}</div>
-                        ${isSelected ? '<div style="position: absolute; top: 5px; right: 5px; font-size: 20px;">✓</div>' : ''}
-                    `;
-                    
-                    if (!isOccupied) {
-                        tableBtn.addEventListener('click', () => {
-                            // Önceki seçimi temizle
-                            document.querySelectorAll('.table-select-btn').forEach(btn => {
-                                if (btn !== tableBtn) {
-                                    btn.style.background = '#f9fafb';
-                                    btn.style.color = '#374151';
-                                    btn.style.borderColor = '#d1d5db';
-                                    btn.style.fontWeight = 'normal';
-                                    const lastDiv = btn.querySelector('div:last-child');
-                                    if (lastDiv && lastDiv.innerHTML.includes('✓')) {
-                                        lastDiv.innerHTML = lastDiv.innerHTML.replace(/<div[^>]*>✓<\/div>/, '');
-                                    }
-                                }
-                            });
-                            
-                            // Yeni seçimi işaretle
-                            tableBtn.style.background = '#2c5530';
-                            tableBtn.style.color = 'white';
-                            tableBtn.style.borderColor = '#2c5530';
-                            tableBtn.style.fontWeight = 'bold';
-                            
-                            const lastDiv = tableBtn.querySelector('div:last-child');
-                            if (lastDiv && !lastDiv.innerHTML.includes('✓')) {
-                                lastDiv.innerHTML = lastDiv.innerHTML + '<div style="position: absolute; top: 5px; right: 5px; font-size: 20px;">✓</div>';
-                            }
-                            
-                            selectedTableForModal = tableNumber;
-                            document.getElementById('selected-table-num').textContent = tableNumber;
-                            confirmTableBtn.style.display = 'block';
-                        });
-                    }
-                    
-                    tablesListDiv.appendChild(tableBtn);
-                });
-            } catch (error) {
-                console.error('Masalar yüklenirken hata:', error);
-                let errorMessage = 'Masalar yüklenirken bir hata oluştu.';
-                if (error.code === 'permission-denied') {
-                    errorMessage = 'İzin hatası: Firestore rules güncellenmemiş olabilir. Lütfen Firebase Console\'dan rules\'ı deploy edin.';
-                }
-                tablesListDiv.innerHTML = `<p style="text-align: center; color: #e53e3e; grid-column: 1 / -1; padding: 20px;">${errorMessage}</p>`;
-            }
-        }
-
-        // Masa seçimini onayla
-        if (confirmTableBtn) {
-            confirmTableBtn.addEventListener('click', () => {
-                if (selectedTableForModal) {
-                    // URL'yi güncelle
-                    const newUrl = new URL(window.location);
-                    newUrl.searchParams.set('table', selectedTableForModal);
-                    window.history.pushState({}, '', newUrl);
-                    
-                    // Masa numarasını güncelle
-                    document.getElementById('table-number').textContent = selectedTableForModal;
-                    
-                    // Modal'ı kapat
-                    tableSelectModal.classList.add('hidden');
-                    const tempTable = selectedTableForModal;
-                    selectedTableForModal = null;
-                    confirmTableBtn.style.display = 'none';
-                    
-                    showNotification(`Masa #${tempTable} seçildi!`, 'success');
-                }
-            });
-        }
-
-        // Global error handler for unhandled promise rejections
-        window.addEventListener('unhandledrejection', (event) => {
-            console.error('Unhandled promise rejection:', event.reason);
-            // Prevent default browser error handling
-            event.preventDefault();
-        });
 
         // Sayfa yüklendiğinde menü öğelerini yükle
         window.addEventListener('load', () => {
