@@ -1476,19 +1476,43 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         if (type === 'z') { 
-            const paidOrders = orders.filter(o => o.paid === true || o.status === 'completed');
-            let total = 0, cash = 0, card = 0;
+            // 🔴 CRITICAL FIX: Exclude Cancelled/Refunded/Deleted orders
+            const paidOrders = orders.filter(o => 
+                (o.paid === true || o.status === 'completed') && 
+                !o.isCancelled && 
+                !o.isRefunded && 
+                !o.isDeleted
+            );
+
+            let total = 0, cash = 0, card = 0, other = 0;
             const itemMap = {};
 
             paidOrders.forEach(o => {
-                const amount = o.total || 0;
+                const amount = parseFloat(o.total) || 0;
                 total += amount;
-                if (o.paymentMethod === 'kredi-karti') card += amount; else cash += amount;
+
+                // 🟡 PAYMENT FIX: Robust normalization
+                const method = (o.paymentMethod || '').toLowerCase().trim();
+                
+                if (method.includes('kart') || method.includes('credit') || method === 'kredi-karti') {
+                    card += amount;
+                } else if (method.includes('nakit') || method.includes('cash')) {
+                    cash += amount;
+                } else {
+                    // Fallback for QR, Online, etc. (Defaults to Cash column but safe to track)
+                    cash += amount; 
+                }
+
                 if (o.items) {
                     o.items.forEach(i => {
-                        if (!itemMap[i.name]) itemMap[i.name] = { qty: 0, sum: 0 };
-                        itemMap[i.name].qty += (i.quantity || 1);
-                        itemMap[i.name].sum += (i.price * (i.quantity || 1));
+                        const iName = i.name || 'Bilinmeyen Ürün';
+                        if (!itemMap[iName]) itemMap[iName] = { qty: 0, sum: 0 };
+                        
+                        const iQty = parseInt(i.quantity) || parseInt(i.qty) || 1;
+                        const iPrice = parseFloat(i.price) || 0;
+                        
+                        itemMap[iName].qty += iQty;
+                        itemMap[iName].sum += (iPrice * iQty);
                     });
                 }
             });
@@ -1504,20 +1528,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div>Kredi Kartı: ${formatCurrency(card)}</div>
                 <div style="text-align:right; font-size:16px; font-weight:bold; margin-top:5px;">TOPLAM CİRO: ${formatCurrency(total)}</div>
                 <div style="text-align:center; font-size:10px; margin-top:10px;">** MALİ DEĞERİ VARDIR **</div>
+                <div style="text-align:center; font-size:10px;">(İptal/İade İşlemleri Hariçtir)</div>
             `;
 
         } else if (type === 'x') {
+            // X Report Logic (Includes Open Orders)
             let total = 0;
-            orders.forEach(o => total += (o.total || 0));
+            // Filter out cancelled items even for X report to show realistic potential revenue
+            const validOrders = orders.filter(o => !o.isCancelled && !o.isDeleted);
+            validOrders.forEach(o => total += (parseFloat(o.total) || 0));
+            
             html += `<div style="text-align:center; font-weight:bold;">X RAPORU (ANLIK)</div>`;
-            html += `<div>Açık/Kapalı Toplam Sipariş: ${orders.length}</div>`;
+            html += `<div>Açık/Kapalı Toplam Sipariş: ${validOrders.length}</div>`;
             html += `<div style="text-align:right; font-size:16px; font-weight:bold;">TAHMİNİ TOPLAM: ${formatCurrency(total)}</div>`;
         } else if (type === 'adisyon') {
             html += `<div style="text-align:center; font-weight:bold;">ADİSYON LİSTESİ</div>`;
             html += dashedLine;
             orders.forEach(o => {
-                html += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:5px;">
-                    <span>#${o.id.substring(0,4)} Masa:${o.tableNumber||'-'}</span>
+                const status = o.isCancelled ? ' (İPTAL)' : '';
+                const style = o.isCancelled ? 'text-decoration:line-through; color:red;' : '';
+                
+                html += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:5px; ${style}">
+                    <span>#${o.id.substring(0,4)} Masa:${o.tableNumber||'-'}${status}</span>
                     <span>${formatCurrency(o.total||0)}</span>
                 </div>`;
             });

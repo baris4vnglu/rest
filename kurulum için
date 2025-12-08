@@ -1,0 +1,82 @@
+local-agent.js kodu, Firebase'e yönetici (admin) yetkisiyle bağlanmaya çalışır. Şu an kodunda bu dosya çağrılıyor ama fiziksel olarak klasöründe olmayabilir.
+
+Ne Yapmalısın?
+
+Firebase Konsolu > Proje Ayarları > Hizmet Hesapları (Service Accounts) kısmına git.
+
+"Yeni özel anahtar oluştur" butonuna bas ve inen .json dosyasını local-agent.js ile aynı klasöre at.
+
+Dosyanın adını tam olarak serviceAccountKey.json olarak değiştir. Bu olmadan node local-agent.js komutu çalışmaz!
+------------------------------------------------------------------------------------------------------------------------------------------     
+2. ⚡ Kesintisiz Çalışma (PM2 Kurulumu)
+Terminali (siyah ekranı) açık bırakmak risklidir. Biri yanlışlıkla kapatırsa veya bilgisayar yeniden başlarsa sistem durur.
+
+Çözüm: PM2 Kullanmak Yarın bilgisayara şu komutları sırasıyla yaz:
+
+PM2'yi yükle: npm install -g pm2
+
+Uygulamayı başlat: pm2 start local-agent.js --name "RestoranYazici"
+
+Bilgisayar açılınca otomatik başlasın: pm2 startup (Çıkan talimatı uygula) ve pm2 save.
+
+Artık terminali kapatsan bile yazıcı sistemi arka planda çalışmaya devam eder.
+------------------------------------------------------------------------------------------------------------------------------------------
+3. 🛑 Windows Uyku Modu Ayarı
+Restoran bilgisayarı genelde kasa başında durur. Eğer bilgisayar 30 dakika sonra "Uyku Moduna" girerse, internet bağlantısı kesilir ve mutfağa sipariş gitmez.
+
+Ne Yapmalısın?
+
+Windows Ayarları > Sistem > Güç ve Uyku ayarlarına git.
+
+"Bilgisayar uyku moduna geçsin" ayarını "Hiçbir Zaman" (Never) yap.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+4. 📌 Yazıcılar İçin "Sabit IP" (Static IP)
+Yazıcıların IP adreslerini (örn: 192.168.1.20) koda yazdık. Ancak modem kapanıp açılırsa modem bu yazıcılara yeni IP'ler (örn: .25, .26) verebilir. Bu durumda sistem çöker.
+
+Ne Yapmalısın?
+
+Restoranın modem arayüzüne girip yazıcıların MAC adreslerine o IP'leri sabitlemek en temizidir.
+
+Veya yazıcıları kuran teknik servisten "Bu yazıcılara Statik IP verdiniz mi?" diye teyit alabilirsin. Genelde verirler ama sormakta fayda var.
+
+
+----------------------------------------------------------------------------------------------------------------------------------------
+5. 🌐 Firewall (Güvenlik Duvarı) İzni
+Bilgisayarın Güvenlik Duvarı, Node.js'in internete çıkmasını veya yerel ağdaki yazıcılara ulaşmasını engelleyebilir.
+
+Ne Yapmalısın?
+
+node local-agent.js'i ilk çalıştırdığında Windows sana "Bu uygulamaya izin verilsin mi?" diye sorarsa mutlaka "Özel Ağlar" ve "Ortak Ağlar" kutucuklarını işaretleyip "Erişime İzin Ver" de.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+✅ Yarın İçin Kontrol Listen (Checklist)
+[ ] Bilgisayarda Node.js yüklü mü?
+
+[ ] local-agent.js ve serviceAccountKey.json dosyaları aynı klasörde mi?
+
+[ ] npm install komutu çalıştırıldı mı? (Modüller yüklendi mi?)
+
+[ ] Yazıcı IP'leri öğrenilip local-agent.js içindeki CONFIG kısmına doğru yazıldı mı?
+
+[ ] Bilgisayar ve yazıcılar aynı modeme mi bağlı? (Kablo/Wi-Fi fark etmez, aynı ağ olmalı)
+
+[ ] Uyku modu kapatıldı mı?
