@@ -1,28 +1,10 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { app, db, auth, analytics } from './firebase.js';
 import {
-    getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, query, where, getDocs, getDoc, orderBy, limit, Timestamp
+    collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, query, where, getDocs, getDoc, orderBy, limit, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
-    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+    signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBRcHElPziOGJd7Q8rCcIluLZ2XnI9j4wE",
-  authDomain: "restorant-8e71c.firebaseapp.com",
-  projectId: "restorant-8e71c",
-  storageBucket: "restorant-8e71c.firebasestorage.app",
-  messagingSenderId: "149835762840",
-  appId: "1:149835762840:web:f8f053d46011bc693a94ed",
-  measurementId: "G-EHBJM150B0"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-const analytics = getAnalytics(app);
-
-
 
 // --- YARDIMCI FONKSİYONLAR ---
 const showNotification = (message, type = 'success') => {

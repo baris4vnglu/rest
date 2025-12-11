@@ -1,175 +1,308 @@
-// Firebase Entegrasyonu
-import { db } from './firebase.js'; // db nesnesini firebase.js'den alıyoruz
-import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-const firebaseConfig = {
-    apiKey: "AIzaSyBRcHElPziOGJd7Q8rCcIluLZ2XnI9j4wE",
-    authDomain: "restorant-8e71c.firebaseapp.com",
-    projectId: "restorant-8e71c",
-    storageBucket: "restorant-8e71c.firebasestorage.app",
-    messagingSenderId: "149835762840",
-    appId: "1:149835762840:web:f8f053d46011bc693a94ed"
-};
+import { app, db } from './firebase.js';
+import { collection, onSnapshot, addDoc, Timestamp, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+let currentViewMode = 'normal';
+let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-// Menü Öğelerini Yükle
+// QR kod ile masa numarasını alma
+function getTableNumber() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('table') || '1';
+}
+
+// Sepet güncelleme fonksiyonu (optimized with DocumentFragment)
+function updateCart() {
+    const cartItemsContainer = document.getElementById('cart-items');
+    const cartTotal = document.getElementById('cart-total');
+    const checkoutButton = document.getElementById('checkout-button');
+    const cartSummary = document.querySelector('.cart-summary');
+    
+    if (!cartItemsContainer || !cartTotal || !checkoutButton) return;
+    
+    // Use DocumentFragment for better performance
+    const fragment = document.createDocumentFragment();
+    let total = 0;
+    
+    cart.forEach((item, index) => {
+        total += parseFloat(item.price) || 0;
+        
+        const cartItem = document.createElement('div');
+        cartItem.className = 'cart-item';
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = item.name + 
+            (item.customization && item.customization !== 'Özelleştirme yok' 
+                ? ` (Özelleştirme: ${item.customization})` : '');
+        
+        const priceDiv = document.createElement('div');
+        const priceSpan = document.createElement('span');
+        priceSpan.textContent = `${item.price} TL`;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-from-cart';
+        removeBtn.setAttribute('data-index', index);
+        removeBtn.textContent = 'Sil';
+        
+        priceDiv.appendChild(priceSpan);
+        priceDiv.appendChild(removeBtn);
+        
+        cartItem.appendChild(nameSpan);
+        cartItem.appendChild(priceDiv);
+        fragment.appendChild(cartItem);
+    });
+    
+    // Batch DOM update
+    cartItemsContainer.innerHTML = '';
+    cartItemsContainer.appendChild(fragment);
+    
+    cartTotal.textContent = `Toplam: ${total} TL`;
+    if (cartSummary) {
+        cartSummary.textContent = `Sepet: ${cart.length} Ürün - ${total} TL`;
+    }
+    localStorage.setItem('cart', JSON.stringify(cart));
+    checkoutButton.disabled = cart.length === 0;
+}
+
+// Menü öğelerini Firestore'dan yükle
 function loadMenuItems() {
-    const grids = {
-        baslangiclar: document.getElementById('baslangiclar-grid'),
-        salatalar: document.getElementById('salatalar-grid'),
-        kahvaltilar: document.getElementById('kahvaltilar-grid'),
-        denizurunleri: document.getElementById('denizurunleri-grid'),
-        pizzalar: document.getElementById('pizzalar-grid'),
-        burgerler: document.getElementById('burgerler-grid'),
-        icecekler: document.getElementById('icecekler-grid'),
-        corbalar: document.getElementById('corbalar-grid'),
-        kebaplar: document.getElementById('kebaplar-grid'),
-        makarnalar: document.getElementById('makarnalar-grid'),
-        mexicanmutfagi: document.getElementById('mexicanmutfagi-grid'),
-        pidecesitleri: document.getElementById('pide-cesitleri-grid'),
-        sandiviclervetostlar: document.getElementById('sandiviclervetostlar-grid'),
-        steakler: document.getElementById('steakler-grid'),
-        tavukyemekleri: document.getElementById('tavukyemekleri-grid'),
-    };
+    const allMenuGrid = document.getElementById('all-menu-grid');
+    const galleryMenuGrid = document.getElementById('gallery-menu-grid');
 
-    onSnapshot(collection(db, "menuItems"), (snapshot) => {
-        Object.values(grids).forEach(grid => grid.innerHTML = '');
-        if (snapshot.empty) {
-            Object.values(grids).forEach(grid => {
-                grid.innerHTML = '<div class="no-data">Menü öğeleri bulunamadı. Lütfen Firebase\'de veri ekleyin.</div>';
-            });
+    onSnapshot(collection(db, "menuItems"), (querySnapshot) => {
+        allMenuGrid.innerHTML = '';
+        galleryMenuGrid.innerHTML = '';
+        
+        if (querySnapshot.empty) {
+            showNotification('Menü öğeleri bulunamadı. Lütfen Firebase\'de veri ekleyin.', 'error');
             return;
         }
 
-        snapshot.forEach((doc) => {
+        // Use DocumentFragment for better performance
+        const normalFragment = document.createDocumentFragment();
+        const galleryFragment = document.createDocumentFragment();
+        
+        querySnapshot.forEach((doc) => {
             const data = doc.data();
             if (data.name && data.price && data.category && data.image) {
                 const item = { id: doc.id, ...data };
-                const grid = grids[item.category] || grids['baslangiclar'];
+                
+                // Normal mod için küçük kart
                 const menuItem = document.createElement('div');
                 menuItem.className = 'menu-item';
                 menuItem.setAttribute('data-id', item.id);
-                menuItem.setAttribute('data-ingredients', item.ingredients || 'Malzemeler yok');
+                menuItem.setAttribute('data-category', item.category);
+                menuItem.setAttribute('data-ingredients', item.ingredients || 'Malzemeler belirtilmemiş');
                 menuItem.setAttribute('data-image', item.image);
+                menuItem.setAttribute('data-name', item.name); // Add for search optimization
+                menuItem.setAttribute('data-price', item.price);
                 menuItem.innerHTML = `
-                    <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/64?text=Yüklenemedi';">
-                    <div class="menu-item-details">
-                        <div class="name">${item.name}</div>
-                        <div class="price">${item.price} TL</div>
+                    <div class="item-image">
+                        <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/300x180?text=Resim+Yok';">
                     </div>
-                    <button class="add-to-cart" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}">Sepete Ekle</button>
+                    <div class="item-content">
+                        <div class="menu-item-details">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-description">${item.description || 'Lezzetli bir seçim'}</div>
+                            <div class="item-price">${item.price} TL</div>
+                        </div>
+                        <button class="add-to-cart" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}" data-category="${item.category}">Sepete Ekle</button>
+                    </div>
                 `;
-                grid.appendChild(menuItem);
+                normalFragment.appendChild(menuItem);
+
+                // Gallery mod için büyük resim
+                const galleryItem = document.createElement('div');
+                galleryItem.className = 'gallery-item';
+                galleryItem.setAttribute('data-id', item.id);
+                galleryItem.setAttribute('data-category', item.category);
+                galleryItem.setAttribute('data-ingredients', item.ingredients || 'Malzemeler belirtilmemiş');
+                galleryItem.setAttribute('data-image', item.image);
+                galleryItem.setAttribute('data-name', item.name); // Add for search optimization
+                galleryItem.setAttribute('data-price', item.price);
+                galleryItem.innerHTML = `
+                    <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/800x400?text=Resim+Yok';">
+                    <div class="gallery-overlay">
+                        <div class="gallery-info">
+                            <div>
+                                <div class="gallery-name">${item.name}</div>
+                                <div class="gallery-price">${item.price} TL</div>
+                            </div>
+                            <button class="gallery-add-to-cart" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}" data-category="${item.category}">Sepete Ekle</button>
+                        </div>
+                    </div>
+                `;
+                galleryFragment.appendChild(galleryItem);
             }
         });
 
+        allMenuGrid.appendChild(normalFragment);
+        galleryMenuGrid.appendChild(galleryFragment);
+
         updateMenuFunctionality();
-    }, (error) => {
-        console.error("Firestore hatası:", error);
-        Object.values(grids).forEach(grid => {
-            grid.innerHTML = '<div class="no-data">Menü yüklenemedi. Hata: ' + error.message + '</div>';
+    });
+}
+
+// Tüm menü işlevselliğini güncelle (optimized - only setup once)
+let menuFunctionalitySetup = false;
+function updateMenuFunctionality() {
+    // Prevent duplicate event listener setup
+    if (menuFunctionalitySetup) {
+        setupCategoryFilter(); // Re-setup category filter for new items
+        return;
+    }
+    menuFunctionalitySetup = true;
+    
+    setupCategoryFilter();
+    setupSearch();
+    setupViewToggle();
+    setupModal();
+    setupCart();
+    setupPayment();
+}
+
+// Kategori filtreleme (optimized with event delegation)
+let categoryFilterSetup = false;
+function setupCategoryFilter() {
+    // Use event delegation to prevent duplicate listeners
+    if (categoryFilterSetup) return;
+    categoryFilterSetup = true;
+    
+    const categoryContainer = document.querySelector('.category-filters') || document.body;
+    categoryContainer.addEventListener('click', (e) => {
+        const button = e.target.closest('.category-btn');
+        if (!button) return;
+        
+        e.preventDefault();
+        const category = button.getAttribute('data-category');
+        const filterButtons = document.querySelectorAll('.category-btn');
+        
+        filterButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        
+        const allItems = document.querySelectorAll('.menu-item, .gallery-item');
+        allItems.forEach(item => {
+            if (category === 'all') {
+                item.classList.remove('hidden');
+            } else {
+                const itemCategory = item.getAttribute('data-category');
+                item.classList.toggle('hidden', itemCategory !== category);
+            }
         });
     });
 }
 
-// Menü İşlevselliğini Güncelle
-function updateMenuFunctionality() {
-    const filterButtons = document.querySelectorAll('.category-filter');
-    const menuSections = document.querySelectorAll('.menu-section');
-    const menuItems = document.querySelectorAll('.menu-item');
-    const searchInput = document.getElementById('searchInput');
+// Debounce utility function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
-    // Kategori Filtresi
-    filterButtons.forEach(button => {
+// Arama işlevi (optimized with debouncing)
+function setupSearch() {
+    const searchInput = document.querySelector('.search-bar');
+    if (!searchInput) return;
+    
+    const performSearch = debounce((searchTerm) => {
+        const allItems = document.querySelectorAll('.menu-item, .gallery-item');
+        const term = searchTerm.toLowerCase();
+        
+        allItems.forEach(item => {
+            // Use data attributes for better performance
+            const itemName = item.getAttribute('data-name')?.toLowerCase() || '';
+            item.classList.toggle('hidden', !itemName.includes(term));
+        });
+    }, 300); // 300ms debounce delay
+    
+    searchInput.addEventListener('input', (e) => {
+        performSearch(e.target.value);
+    });
+}
+
+// Görünüm modu değiştirme
+function setupViewToggle() {
+    const viewButtons = document.querySelectorAll('.view-btn');
+    const normalContainer = document.getElementById('normal-menu-container');
+    const galleryContainer = document.getElementById('gallery-menu-container');
+    
+    viewButtons.forEach(button => {
         button.addEventListener('click', () => {
-            const category = button.getAttribute('data-category');
+            const view = button.getAttribute('data-view');
             
-            menuSections.forEach(section => {
-                if (category === 'all') {
-                    section.classList.remove('hidden');
-                } else {
-                    section.classList.toggle('hidden', section.getAttribute('data-category') !== category);
-                }
-            });
-
-            filterButtons.forEach(btn => btn.classList.remove('active'));
+            viewButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
-        });
-    });
-
-    // Arama İşlevselliği
-    searchInput.addEventListener('input', () => {
-        const searchTerm = searchInput.value.toLowerCase();
-
-        menuItems.forEach(item => {
-            const itemName = item.querySelector('.menu-item-details .name').textContent.toLowerCase();
-            const matches = itemName.includes(searchTerm);
             
-            item.classList.toggle('hidden', !matches);
+            if (view === 'normal') {
+                normalContainer.classList.remove('hidden');
+                galleryContainer.classList.add('hidden');
+                currentViewMode = 'normal';
+            } else {
+                normalContainer.classList.add('hidden');
+                galleryContainer.classList.remove('hidden');
+                currentViewMode = 'gallery';
+            }
         });
-
-        menuSections.forEach(section => section.classList.remove('hidden'));
     });
+}
 
-    // Modal İşlevselliği
+// Modal işlevselliği
+function setupModal() {
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modal-title');
     const modalIngredients = document.getElementById('modal-ingredients');
     const modalImage = document.getElementById('modal-image');
+    const modalCustomization = document.getElementById('modal-customization');
     const closeModal = document.getElementById('close-modal');
-    const ratingStars = document.querySelectorAll('.star');
+    const ratingStars = document.querySelectorAll('#modal-rating .star');
     const commentInput = document.getElementById('comment');
     const submitComment = document.getElementById('submit-comment');
     const commentList = document.getElementById('comment-list');
+    const modalAddToCart = document.getElementById('modal-add-to-cart');
+    
     let currentItemId = null;
     let currentRating = 0;
+    let currentItem = null;
 
-    function loadComments(itemId) {
-        const comments = JSON.parse(localStorage.getItem(`comments_${itemId}`)) || [];
-        commentList.innerHTML = '';
-        comments.forEach(({ rating, comment }) => {
-            const commentDiv = document.createElement('div');
-            commentDiv.classList.add('border-b', 'border-gray-200', 'py-2');
-            const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-            commentDiv.innerHTML = `
-                <div class="flex items-center mb-1">
-                    <span class="comment-star">${stars}</span>
-                    <span class="ml-2 text-sm text-gray-500">(${rating}/5)</span>
-                </div>
-                <p class="text-gray-600 text-sm">${comment}</p>
-            `;
-            commentList.appendChild(commentDiv);
+    // Tıklama event'larını hem normal hem gallery item'lar için ekle
+    function setupItemClickEvents() {
+        const allItems = document.querySelectorAll('.menu-item, .gallery-item');
+        allItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.classList.contains('add-to-cart') || e.target.classList.contains('gallery-add-to-cart')) return;
+                
+                currentItemId = item.getAttribute('data-id');
+                currentItem = {
+                    id: currentItemId,
+                    name: item.classList.contains('gallery-item') ? 
+                        item.querySelector('.gallery-name').textContent : 
+                        item.querySelector('.item-name').textContent,
+                    price: parseInt(item.classList.contains('gallery-item') ? 
+                        item.querySelector('.gallery-price').textContent.replace(' TL', '') : 
+                        item.querySelector('.item-price').textContent.replace(' TL', '')),
+                    image: item.getAttribute('data-image'),
+                    ingredients: item.getAttribute('data-ingredients')
+                };
+                
+                modalTitle.textContent = currentItem.name;
+                modalIngredients.textContent = currentItem.ingredients;
+                modalImage.src = currentItem.image;
+                modalCustomization.value = '';
+                modal.classList.remove('hidden');
+                ratingStars.forEach(star => star.classList.remove('filled'));
+                commentInput.value = '';
+                currentRating = 0;
+                loadComments(currentItemId);
+            });
         });
     }
 
-    function saveComment(itemId, rating, comment) {
-        const comments = JSON.parse(localStorage.getItem(`comments_${itemId}`)) || [];
-        comments.push({ rating, comment });
-        localStorage.setItem(`comments_${itemId}`, JSON.stringify(comments));
-    }
-
-    menuItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            if (e.target.classList.contains('add-to-cart')) return;
-
-            const name = item.querySelector('.menu-item-details .name').textContent;
-            const ingredients = item.getAttribute('data-ingredients');
-            const image = item.getAttribute('data-image');
-            currentItemId = item.getAttribute('data-id');
-
-            modalTitle.textContent = name;
-            modalIngredients.textContent = ingredients;
-            modalImage.src = image;
-            modal.classList.remove('hidden');
-
-            ratingStars.forEach(star => star.classList.remove('filled'));
-            commentInput.value = '';
-            currentRating = 0;
-
-            loadComments(currentItemId);
-        });
-    });
+    setupItemClickEvents();
 
     closeModal.addEventListener('click', () => modal.classList.add('hidden'));
     modal.addEventListener('click', (e) => {
@@ -193,163 +326,438 @@ function updateMenuFunctionality() {
             commentInput.value = '';
             ratingStars.forEach(star => star.classList.remove('filled'));
             currentRating = 0;
-            showNotification('Yorum ve puan kaydedildi!', 'success');
+            showNotification(`${currentItem.name} için yorum ve puan kaydedildi!`, 'success');
         } else {
             showNotification('Lütfen bir yorum yazın ve puan verin.', 'error');
         }
     });
 
-    // Sepet İşlevselliği
-    let cart = JSON.parse(localStorage.getItem('cart')) || [];
+    modalAddToCart.addEventListener('click', () => {
+        if (!currentItem) return;
+        const customization = modalCustomization.value.trim();
+        const itemWithCustomization = { 
+            ...currentItem, 
+            customization: customization || 'Özelleştirme yok'
+        };
+        cart.push(itemWithCustomization);
+        updateCart();
+        showNotification(`${currentItem.name} sepete eklendi!`, 'success');
+        modal.classList.add('hidden');
+    });
+}
+
+// Yorum işlevleri
+function loadComments(itemId) {
+    const comments = JSON.parse(localStorage.getItem(`comments_${itemId}`)) || [];
+    const commentList = document.getElementById('comment-list');
+    commentList.innerHTML = '';
+    
+    comments.forEach(({ rating, comment }) => {
+        const commentDiv = document.createElement('div');
+        commentDiv.style.padding = '10px';
+        commentDiv.style.borderBottom = '1px solid var(--border)';
+        commentDiv.style.marginBottom = '10px';
+        
+        const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+        commentDiv.innerHTML = `
+            <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                <span class="comment-star">${stars}</span>
+                <span style="margin-left: 8px; font-size: 12px; color: var(--text-light);">(${rating}/5)</span>
+            </div>
+            <p style="color: var(--text-dark); font-size: 14px;">${comment}</p>
+        `;
+        commentList.appendChild(commentDiv);
+    });
+}
+
+function saveComment(itemId, rating, comment) {
+    const comments = JSON.parse(localStorage.getItem(`comments_${itemId}`)) || [];
+    comments.push({ rating, comment });
+    localStorage.setItem(`comments_${itemId}`, JSON.stringify(comments));
+}
+
+// Sepet işlevselliği
+function setupCart() {
     const cartItemsContainer = document.getElementById('cart-items');
     const cartTotal = document.getElementById('cart-total');
     const checkoutButton = document.getElementById('checkout-button');
     const cartPanel = document.getElementById('cart-panel');
     const cartToggle = document.getElementById('cart-toggle');
+    const cartSummary = document.querySelector('.cart-summary');
 
-    function updateCart() {
-        cartItemsContainer.innerHTML = '';
-        let total = 0;
-
-        cart.forEach((item, index) => {
-            total += parseInt(item.price);
-            const cartItem = document.createElement('div');
-            cartItem.classList.add('cart-item');
-            cartItem.innerHTML = `
-                <span>${item.name}</span>
-                <div>
-                    <span>${item.price} TL</span>
-                    <button class="remove-from-cart ml-2" data-index="${index}">Sil</button>
-                </div>
-            `;
-            cartItemsContainer.appendChild(cartItem);
+    // Sepete ekleme butonları için event listener'lar
+    function setupAddToCartEvents() {
+        const addToCartButtons = document.querySelectorAll('.add-to-cart, .gallery-add-to-cart');
+        addToCartButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = button.getAttribute('data-id');
+                const name = button.getAttribute('data-name');
+                const price = parseInt(button.getAttribute('data-price'));
+                const category = button.getAttribute('data-category');
+                cart.push({ id, name, price, category, customization: 'Özelleştirme yok' });
+                updateCart();
+                showNotification(`${name} sepete eklendi!`, 'success');
+            });
         });
-
-        cartTotal.textContent = `Toplam: ${total} TL`;
-        localStorage.setItem('cart', JSON.stringify(cart));
-        checkoutButton.disabled = cart.length === 0;
     }
 
-    const addToCartButtons = document.querySelectorAll('.add-to-cart');
-    addToCartButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const id = button.getAttribute('data-id');
-            const name = button.getAttribute('data-name');
-            const price = button.getAttribute('data-price');
+    setupAddToCartEvents();
 
-            cart.push({ id, name, price });
-            updateCart();
-
-            showNotification(`${name} sepete eklendi!`, 'success');
-        });
+    cartToggle.addEventListener('click', () => {
+        cartPanel.classList.toggle('active');
+        if (cartPanel.classList.contains('active')) {
+            cartPanel.classList.remove('hidden');
+        } else {
+            setTimeout(() => cartPanel.classList.add('hidden'), 500);
+        }
     });
 
+    // Sepet silme butonları için event listener ekle
     cartItemsContainer.addEventListener('click', (e) => {
         if (e.target.classList.contains('remove-from-cart')) {
             const index = parseInt(e.target.getAttribute('data-index'));
             const removedItem = cart[index].name;
             cart.splice(index, 1);
             updateCart();
-
             showNotification(`${removedItem} sepetten çıkarıldı!`, 'error');
         }
     });
 
-    // Ödeme Modal İşlevselliği
+    updateCart();
+}
+
+// ============================================================
+// 📍 KONUM (GPS) AYARLARI
+// ============================================================
+const RESTAURANT_LAT = 35.19991185959213;
+const RESTAURANT_LNG = 33.359793531692866;
+const MAX_DISTANCE_METERS = 100; // İzin verilen maksimum uzaklık (metre)
+
+// İki nokta arasındaki mesafeyi ölçen formül (Haversine)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Dünyanın yarıçapı (metre cinsinden)
+    const f1 = lat1 * Math.PI / 180;
+    const f2 = lat2 * Math.PI / 180;
+    const df = (lat2 - lat1) * Math.PI / 180;
+    const dl = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(df / 2) * Math.sin(df / 2) +
+              Math.cos(f1) * Math.cos(f2) *
+              Math.sin(dl / 2) * Math.sin(dl / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Metre cinsinden mesafe döner
+}
+
+// ============================================================
+// 💳 GÜVENLİ ÖDEME FONKSİYONU (GPS KONTROLLÜ)
+// ============================================================
+function setupPayment() {
     const paymentModal = document.getElementById('payment-modal');
     const closePaymentModal = document.getElementById('close-payment-modal');
     const paymentOptions = document.querySelectorAll('.payment-option');
+    const checkoutButton = document.getElementById('checkout-button');
 
-    
-
-    // --- GEOLOCATION SECURITY ---
-    //const RESTAURANT_LAT = 35.19991185959213; // 35.19984700001372, 33.35978225584203
-   // const RESTAURANT_LNG = 33.359793531692866; //35.19991185959213, 33.359793531692866
-    //const MAX_DISTANCE_METERS = 100;
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371e3; // Dünya yarıçapı (metre)
-        const φ1 = lat1 * Math.PI / 180;
-        const φ2 = lat2 * Math.PI / 180;
-        const Δφ = (lat2 - lat1) * Math.PI / 180;
-        const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                  Math.cos(φ1) * Math.cos(φ2) *
-                  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return R * c;
-    }
-
-    checkoutButton.addEventListener('click', () => {
-        if (cart.length === 0) return;
-
-        showNotification('Konum kontrol ediliyor...', 'success');
-
-        if (!navigator.geolocation) {
-            showNotification('Tarayıcı konum servisini desteklemiyor. Devam ediliyor...', 'error');
-            paymentModal.classList.remove('hidden');
-            return;
+    // "QR ile Ödeme" ve "Kart ile Ödeme" seçeneklerini pasif yap (İsteğe bağlı)
+    paymentOptions.forEach(option => {
+        const title = option.querySelector('h3').textContent.trim();
+        if (title === "QR ile Ödeme" || title === "Kart ile Ödeme") {
+            option.classList.add("disabled");
+            option.style.pointerEvents = "none";
+            option.innerHTML += "<p style='color:red;font-weight:bold;font-size:12px;'>Yakında!</p>";
         }
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const userLat = position.coords.latitude;
-                const userLng = position.coords.longitude;
-                const distance = calculateDistance(userLat, userLng, RESTAURANT_LAT, RESTAURANT_LNG);
-
-                console.log(`Mesafe: ${distance.toFixed(2)} metre`);
-
-                if (distance <= MAX_DISTANCE_METERS) {
-                    paymentModal.classList.remove('hidden');
-                } else {
-                    showNotification(`Sipariş verebilmek için restoranda olmalısınız! (Mesafe: ${Math.round(distance)}m)`, 'error');
-                }
-            },
-            (error) => {
-                console.warn("Konum alınamadı:", error);
-                showNotification('Konum alınamadı. Lütfen garsona bilgi veriniz. İşleme devam ediliyor...', 'error');
-                paymentModal.classList.remove('hidden');
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
     });
 
+    // "Satın Al" butonuna basınca modalı aç
+    checkoutButton.addEventListener('click', () => {
+        if (cart.length > 0) paymentModal.classList.remove('hidden');
+    });
+
+    // Modalı kapatma işlemleri
     closePaymentModal.addEventListener('click', () => paymentModal.classList.add('hidden'));
     paymentModal.addEventListener('click', (e) => {
         if (e.target === paymentModal) paymentModal.classList.add('hidden');
     });
 
+    // ÖDEME SEÇENEKLERİNE TIKLANINCA ÇALIŞAN KISIM
     paymentOptions.forEach(option => {
-        option.addEventListener('click', () => {
+        option.addEventListener('click', async () => {
+            // Eğer seçenek pasifse işlem yapma
+            if (option.classList.contains('disabled')) return;
+
             const method = option.querySelector('h3').textContent;
-            showNotification(`Ödeme yöntemi seçildi: ${method}. İşleminiz tamamlandı!`, 'success');
-            cart = [];
-            updateCart();
-            paymentModal.classList.add('hidden');
+
+            // 1. SEPET KONTROLÜ
+            if (cart.length === 0) {
+                paymentModal.classList.add('hidden');
+                return;
+            }
+
+            // 2. MASA NUMARASI KONTROLÜ
+            const tableNumber = getTableNumber();
+            if (!tableNumber || tableNumber === '1' || tableNumber === null) {
+                showNotification('Lütfen geçerli bir masa numarası seçin!', 'error');
+                paymentModal.classList.add('hidden');
+                return;
+            }
+
+            // 3. 📍 KONUM KONTROLÜ BAŞLIYOR
+            if (!navigator.geolocation) {
+                alert("Tarayıcınız konum servisini desteklemiyor. Sipariş verilemedi.");
+                return;
+            }
+
+            showNotification("📍 Konum doğrulanıyor, lütfen bekleyin...", "warning");
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                // --- KONUM ALINDI, MESAFE HESAPLANIYOR ---
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+                
+                const distance = calculateDistance(userLat, userLng, RESTAURANT_LAT, RESTAURANT_LNG);
+                console.log(`Müşteri Konumu: ${userLat}, ${userLng}`);
+                console.log(`Mesafe: ${Math.floor(distance)} metre`);
+
+                // --- MESAFE KONTROLÜ ---
+                if (distance > MAX_DISTANCE_METERS) {
+                    alert(`⛔ UYARI: Restorandan çok uzaktasınız!\n\nTespit edilen mesafe: ${Math.floor(distance)} metre.\nSipariş vermek için restoranda olmalısınız.`);
+                    return; // BURADA DUR! Sipariş gönderme.
+                }
+
+                // --- MESAFE UYGUNSA SİPARİŞİ GÖNDER ---
+                try {
+                    const items = cart.map(item => ({
+                        id: item.id,
+                        name: item.name,
+                        price: parseFloat(item.price),
+                        qty: 1, // Adet bilgisi eklendi
+                        category: item.category || "Diğer", // Yazıcı için kategori önemli
+                        note: item.customization !== 'Özelleştirme yok' ? item.customization : ""
+                    }));
+
+                    const total = items.reduce((sum, item) => sum + item.price, 0);
+                    
+                    const orderData = {
+                        items,
+                        total,
+                        totalPrice: total, // Yazıcı uyumluluğu için
+                        status: 'Hazırlanıyor',
+                        paid: false,
+                        isPaid: false, // Yazıcı uyumluluğu için
+                        isPrinted: false, // Yazıcı için yeni eklendi
+                        createdAt: Timestamp.now(),
+                        paymentMethod: method,
+                        source: 'index.html',
+                        tableNumber: parseInt(tableNumber),
+                        tableNo: parseInt(tableNumber) // Yazıcı uyumluluğu için
+                    };
+
+                    // Offline kontrolü
+                    if (!navigator.onLine) {
+                        let pendingOrders = JSON.parse(localStorage.getItem("pendingOrders")) || [];
+                        pendingOrders.push(orderData);
+                        localStorage.setItem("pendingOrders", JSON.stringify(pendingOrders));
+                        showNotification("İnternet yok, sipariş hafızaya alındı!", "warning");
+                    } else {
+                        // Firestore'a kaydet
+                        await addDoc(collection(db, 'orders'), orderData);
+                        showNotification(`✅ Siparişiniz Mutfağa İletildi!`, 'success');
+                    }
+                    
+                    // Temizlik
+                    cart = [];
+                    updateCart();
+                    paymentModal.classList.add('hidden');
+
+                } catch (error) {
+                    console.error('Sipariş hatası:', error);
+                    showNotification('Sipariş gönderilemedi: ' + error.message, 'error');
+                }
+
+            }, (error) => {
+                // --- KONUM ALINAMADIYSA ---
+                console.error("Konum hatası:", error);
+                if (error.code === 1) {
+                    alert("⛔ KONUM İZNİ REDDEDİLDİ!\nSipariş verebilmek için tarayıcı ayarlarından konum izni vermelisiniz.");
+                } else {
+                    alert("⛔ Konumunuz alınamadı. Lütfen GPS'inizi açıp tekrar deneyin.");
+                }
+            }, {
+                enableHighAccuracy: true, // Yüksek hassasiyet (GPS) kullan
+                timeout: 10000,           // 10 saniye bekle
+                maximumAge: 0             // Önbellekten eski konum kullanma
+            });
         });
     });
+}
 
-    // Cart Toggle Functionality
-    cartToggle.addEventListener('click', () => {
-        cartPanel.classList.toggle('active');
-        if (!cartPanel.classList.contains('active')) {
-            setTimeout(() => cartPanel.classList.add('hidden'), 300);
-        } else {
-            cartPanel.classList.remove('hidden');
+// Bildirim fonksiyonu
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 2000);
+}
+
+// Masa seçim modal'ı
+let selectedTableForModal = null;
+const tableSelectModal = document.getElementById('table-select-modal');
+const tableNumberDisplay = document.getElementById('table-number-display');
+const tablesListDiv = document.getElementById('tables-list');
+const confirmTableBtn = document.getElementById('confirm-table-selection');
+const closeTableModal = document.getElementById('close-table-modal');
+
+// Masa numarasına tıklanınca modal aç
+if (tableNumberDisplay) {
+    tableNumberDisplay.addEventListener('click', () => {
+        loadTablesForSelection();
+        tableSelectModal.classList.remove('hidden');
+    });
+}
+
+// Modal kapatma
+if (closeTableModal) {
+    closeTableModal.addEventListener('click', () => {
+        tableSelectModal.classList.add('hidden');
+        selectedTableForModal = null;
+        confirmTableBtn.style.display = 'none';
+    });
+}
+
+// Modal dışına tıklanınca kapat
+if (tableSelectModal) {
+    tableSelectModal.addEventListener('click', (e) => {
+        if (e.target === tableSelectModal) {
+            tableSelectModal.classList.add('hidden');
+            selectedTableForModal = null;
+            confirmTableBtn.style.display = 'none';
         }
     });
+}
 
-    // Bildirim Fonksiyonu
-    function showNotification(message, type) {
-        const notification = document.createElement('div');
-        notification.className = `fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        setTimeout(() => notification.remove(), 2000);
+// Masaları yükle
+async function loadTablesForSelection() {
+    if (!tablesListDiv) return;
+    
+    try {
+        tablesListDiv.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1 / -1; padding: 20px;">Yükleniyor...</p>';
+        
+        const tablesSnapshot = await getDocs(query(collection(db, 'tables'), orderBy('number', 'asc')));
+        
+        if (tablesSnapshot.empty) {
+            tablesListDiv.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1 / -1; padding: 20px;">Henüz masa oluşturulmamış.</p>';
+            return;
+        }
+        
+        tablesListDiv.innerHTML = '';
+        const currentTable = parseInt(getTableNumber());
+        
+        tablesSnapshot.forEach((docSnap) => {
+            const table = docSnap.data();
+            const tableNumber = table.number;
+            const isSelected = currentTable === tableNumber;
+            const isOccupied = table.status === 'Dolu';
+            
+            const tableBtn = document.createElement('button');
+            tableBtn.className = 'table-select-btn';
+            tableBtn.style.cssText = `
+                padding: 15px;
+                border: 2px solid ${isSelected ? '#2c5530' : isOccupied ? '#e53e3e' : '#d1d5db'};
+                border-radius: 8px;
+                background: ${isSelected ? '#2c5530' : isOccupied ? '#fee2e2' : '#f9fafb'};
+                color: ${isSelected ? 'white' : isOccupied ? '#e53e3e' : '#374151'};
+                font-size: 16px;
+                font-weight: ${isSelected ? 'bold' : 'normal'};
+                cursor: ${isOccupied ? 'not-allowed' : 'pointer'};
+                transition: all 0.2s;
+                position: relative;
+            `;
+            
+            tableBtn.innerHTML = `
+                <div style="font-size: 18px; font-weight: bold;">${tableNumber}</div>
+                <div style="font-size: 12px; margin-top: 5px;">${table.status || 'Boş'}</div>
+                ${isSelected ? '<div style="position: absolute; top: 5px; right: 5px; font-size: 20px;">✓</div>' : ''}
+            `;
+            
+            if (!isOccupied) {
+                tableBtn.addEventListener('click', () => {
+                    // Önceki seçimi temizle
+                    document.querySelectorAll('.table-select-btn').forEach(btn => {
+                        if (btn !== tableBtn) {
+                            btn.style.background = '#f9fafb';
+                            btn.style.color = '#374151';
+                            btn.style.borderColor = '#d1d5db';
+                            btn.style.fontWeight = 'normal';
+                            const lastDiv = btn.querySelector('div:last-child');
+                            if (lastDiv && lastDiv.innerHTML.includes('✓')) {
+                                lastDiv.innerHTML = lastDiv.innerHTML.replace(/<div[^>]*>✓<\/div>/, '');
+                            }
+                        }
+                    });
+                    
+                    // Yeni seçimi işaretle
+                    tableBtn.style.background = '#2c5530';
+                    tableBtn.style.color = 'white';
+                    tableBtn.style.borderColor = '#2c5530';
+                    tableBtn.style.fontWeight = 'bold';
+                    
+                    const lastDiv = tableBtn.querySelector('div:last-child');
+                    if (lastDiv && !lastDiv.innerHTML.includes('✓')) {
+                        lastDiv.innerHTML = lastDiv.innerHTML + '<div style="position: absolute; top: 5px; right: 5px; font-size: 20px;">✓</div>';
+                    }
+                    
+                    selectedTableForModal = tableNumber;
+                    document.getElementById('selected-table-num').textContent = tableNumber;
+                    confirmTableBtn.style.display = 'block';
+                });
+            }
+            
+            tablesListDiv.appendChild(tableBtn);
+        });
+    } catch (error) {
+        console.error('Masalar yüklenirken hata:', error);
+        let errorMessage = 'Masalar yüklenirken bir hata oluştu.';
+        if (error.code === 'permission-denied') {
+            errorMessage = 'İzin hatası: Firestore rules güncellenmemiş olabilir. Lütfen Firebase Console\'dan rules\'ı deploy edin.';
+        }
+        tablesListDiv.innerHTML = `<p style="text-align: center; color: #e53e3e; grid-column: 1 / -1; padding: 20px;">${errorMessage}</p>`;
     }
 }
 
+// Masa seçimini onayla
+if (confirmTableBtn) {
+    confirmTableBtn.addEventListener('click', () => {
+        if (selectedTableForModal) {
+            // URL'yi güncelle
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('table', selectedTableForModal);
+            window.history.pushState({}, '', newUrl);
+            
+            // Masa numarasını güncelle
+            document.getElementById('table-number').textContent = selectedTableForModal;
+            
+            // Modal'ı kapat
+            tableSelectModal.classList.add('hidden');
+            const tempTable = selectedTableForModal;
+            selectedTableForModal = null;
+            confirmTableBtn.style.display = 'none';
+            
+            showNotification(`Masa #${tempTable} seçildi!`, 'success');
+        }
+    });
+}
+
+// Global error handler for unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    // Prevent default browser error handling
+    event.preventDefault();
+});
+
 // Sayfa yüklendiğinde menü öğelerini yükle
-window.addEventListener('load', loadMenuItems);
+window.addEventListener('load', () => {
+    document.getElementById('table-number').textContent = getTableNumber();
+    loadMenuItems();
+});
