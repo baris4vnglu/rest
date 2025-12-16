@@ -405,13 +405,43 @@
         </div>
     </div>
 
-    <div class="legal-warning">
-        🛠 YARDIM VE TEKNİK DESTEK<br>
-        Yazılım Sürümü: v1.0.0 (Beta Sürüm) — Lisans: Demo / Test Modu<br><br>
-        📞 Acil Destek Hattı: <a href="mailto:Restoranmenu143@gmail.com">Restoranmenu143@gmail.com</a> (Hafta içi 10:00 - 24:00)<br><br>
-        ⚠ Yasal Uyarı: Bu yazılım sadece sipariş takip amaçlıdır. 
-        Maliye Bakanlığı onaylı ÖKC değildir. Resmi fiş/fatura kesme yükümlülüğü işletmeye aittir.
+        <!-- Yardım Butonu -->
+    <button id="helpToggleBtn">🛠 Yardım</button>
+
+    <!-- Yardım Paneli -->
+    <div id="helpPanel">
+    <h4>🛠 YARDIM VE TEKNİK DESTEK</h4>
+
+    <p>
+        <strong>Yazılım Sürümü:</strong> v1.0.0 (Beta)<br>
+        <strong>Lisans:</strong> Demo / Test
+    </p>
+
+    <p>
+        📧İLETİŞİM <a href="mailto:restoranmenu143@gmail.com">
+        restoranmenu143@gmail.com
+        </a><br>
+        ⏰ Hafta içi 10:00 - 24:00
+    </p>
+
+    <p class="warning">
+        ⚠ Bu yazılım sadece sipariş takip amaçlıdır.<br>
+        ÖKC değildir, fiş/fatura sorumluluğu işletmeye aittir.
+    </p>
     </div>
+  
+
+    <script>
+    const btn = document.getElementById("helpToggleBtn");
+    const panel = document.getElementById("helpPanel");
+
+    btn.addEventListener("click", () => {
+        panel.style.display =
+        panel.style.display === "none" || panel.style.display === ""
+            ? "block"
+            : "none";
+    });
+    </script>
 
 </body>
 </html>
